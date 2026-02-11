@@ -719,6 +719,166 @@
 }
 
 /* ===========================
+   Connector Info (Source Modal)
+   =========================== */
+
+.nc-connector-info {
+    border-radius: 10px;
+    margin-bottom: 20px;
+    overflow: hidden;
+    border: 1px solid var(--nc-border);
+}
+
+.nc-connector-info-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    font-size: 14px;
+    color: var(--nc-white);
+}
+
+.nc-connector-info-header .dashicons {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+}
+
+.nc-connector-plone .nc-connector-info-header { background: #E74C3C; }
+.nc-connector-wordpress .nc-connector-info-header { background: #21759B; }
+.nc-connector-tainacan .nc-connector-info-header { background: #298E7E; }
+.nc-connector-visite .nc-connector-info-header { background: #F39C12; }
+
+.nc-connector-info-body {
+    padding: 16px;
+    background: var(--nc-bg);
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--nc-text);
+}
+
+.nc-connector-info-body p {
+    margin: 0 0 12px 0;
+}
+
+.nc-connector-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.nc-step {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 0;
+    font-size: 13px;
+}
+
+.nc-step-num {
+    background: var(--nc-accent);
+    color: var(--nc-white);
+    border-radius: 50%;
+    width: 22px;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 11px;
+    flex-shrink: 0;
+}
+
+.nc-connector-tip {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 10px 14px;
+    background: var(--nc-secondary);
+    border-radius: 8px;
+    font-size: 12px;
+    color: var(--nc-text-light);
+    border-left: 3px solid var(--nc-accent);
+}
+
+.nc-connector-tip .dashicons {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    margin-top: 1px;
+}
+
+/* ===========================
+   Help Modal Sections
+   =========================== */
+
+.nc-help-section {
+    margin-bottom: 20px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--nc-border);
+}
+
+.nc-help-section:last-child {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+}
+
+.nc-help-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0 0 8px 0;
+    font-size: 16px;
+    color: var(--nc-text);
+}
+
+.nc-help-section p {
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--nc-text);
+    margin: 0 0 10px 0;
+}
+
+.nc-help-example {
+    background: var(--nc-bg);
+    padding: 12px 16px;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    font-size: 13px;
+    line-height: 1.8;
+    border-left: 3px solid var(--nc-primary);
+}
+
+.nc-help-example code {
+    background: var(--nc-white);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 12px;
+    color: var(--nc-accent-dark);
+    border: 1px solid var(--nc-border);
+}
+
+.nc-help-tip {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--nc-text-light);
+    margin: 0;
+}
+
+.nc-help-tip .dashicons {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    margin-top: 1px;
+}
+
+/* ===========================
    Responsive
    =========================== */
 
