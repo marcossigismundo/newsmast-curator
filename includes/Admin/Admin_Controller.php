@@ -36,7 +36,7 @@ class Admin_Controller {
         if (strpos($hook, 'newsmast-curator') === false) return;
 
         wp_enqueue_style('nc-admin', NC_ASSETS_URL . 'css/admin.css', [], $this->version);
-        wp_enqueue_script('nc-admin', NC_ASSETS_URL . 'js/admin.js', ['jquery', 'wp-api-fetch'], $this->version, true);
+        wp_enqueue_script('nc-admin', NC_ASSETS_URL . 'js/admin.js', ['jquery', 'wp-api-fetch'], $this->version, false);
 
         wp_localize_script('nc-admin', 'ncData', [
             'apiUrl' => '/newsmast-curator/v1',
