@@ -39,7 +39,7 @@ class Admin_Controller {
         wp_enqueue_script('nc-admin', NC_ASSETS_URL . 'js/admin.js', ['jquery', 'wp-api-fetch'], $this->version, true);
 
         wp_localize_script('nc-admin', 'ncData', [
-            'apiUrl' => esc_url_raw(rest_url('newsmast-curator/v1')),
+            'apiUrl' => '/newsmast-curator/v1',
             'nonce' => wp_create_nonce('wp_rest'),
             'currentPage' => isset($_GET['page']) ? sanitize_text_field($_GET['page']) : 'newsmast-curator',
         ]);

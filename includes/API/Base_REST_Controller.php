@@ -9,7 +9,7 @@ abstract class Base_REST_Controller extends \WP_REST_Controller {
         $this->database = $database;
     }
 
-    protected function check_permissions($request) {
+    public function check_permissions($request) {
         return current_user_can('manage_nc_items');
     }
 
