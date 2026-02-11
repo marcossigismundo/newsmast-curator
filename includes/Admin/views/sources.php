@@ -156,6 +156,7 @@ NC.loadSources = function() {
 };
 
 NC.showAddSourceModal = function() {
+    console.log('showAddSourceModal called');
     jQuery('#nc-modal-title').text('Nova Fonte');
     jQuery('#nc-source-form')[0].reset();
     jQuery('#nc-source-id').val('');

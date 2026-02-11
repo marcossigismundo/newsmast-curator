@@ -3,8 +3,23 @@
 
     window.NC = {
         init: function() {
+            console.log('NC.init() called');
+            console.log('ncData:', typeof ncData !== 'undefined' ? ncData : 'undefined');
+            console.log('wp.apiFetch:', typeof wp !== 'undefined' && typeof wp.apiFetch !== 'undefined' ? 'available' : 'not available');
+
             this.initTabs();
             this.initModalClose();
+            this.setupApiFetch();
+        },
+
+        setupApiFetch: function() {
+            // Configura o middleware do wp.apiFetch
+            if (typeof wp !== 'undefined' && typeof wp.apiFetch !== 'undefined') {
+                console.log('Setting up wp.apiFetch with nonce');
+                wp.apiFetch.use(wp.apiFetch.createNonceMiddleware(ncData.nonce));
+            } else {
+                console.error('wp.apiFetch not available!');
+            }
         },
 
         initTabs: function() {
@@ -36,14 +51,17 @@
         },
 
         openModal: function(modalId) {
+            console.log('Opening modal:', modalId);
             $('#' + modalId).addClass('active');
         },
 
         closeModal: function(modalId) {
+            console.log('Closing modal:', modalId);
             $('#' + modalId).removeClass('active');
         },
 
         showNotice: function(type, message) {
+            console.log('Notice:', type, message);
             const noticeClass = type === 'success' ? 'nc-notice-success' :
                               type === 'error' ? 'nc-notice-error' :
                               type === 'warning' ? 'nc-notice-warning' : 'nc-notice-info';
@@ -69,27 +87,32 @@
         },
 
         collectNow: function(sourceId) {
+            console.log('collectNow called for source:', sourceId);
             this.showNotice('info', 'Iniciando coleta...');
 
             wp.apiFetch({
                 path: `${ncData.apiUrl}/sources/${sourceId}/collect`,
                 method: 'POST'
             }).then(response => {
+                console.log('Collection response:', response);
                 this.showNotice('success', `${response.items_collected} itens coletados!`);
                 if (typeof NC.loadSources === 'function') {
                     setTimeout(() => NC.loadSources(), 1000);
                 }
             }).catch(error => {
-                this.showNotice('error', 'Erro na coleta: ' + error.message);
+                console.error('Collection error:', error);
+                this.showNotice('error', 'Erro na coleta: ' + (error.message || 'Erro desconhecido'));
             });
         },
 
         collectAll: function() {
+            console.log('collectAll called');
             if (!confirm('Iniciar coleta de todas as fontes ativas?')) return;
 
             this.showNotice('info', 'Coletando de todas as fontes...');
 
             wp.apiFetch({path: `${ncData.apiUrl}/sources`}).then(sources => {
+                console.log('Sources fetched:', sources);
                 const activeSources = sources.filter(s => s.status === 'active');
 
                 if (activeSources.length === 0) {
@@ -105,14 +128,19 @@
                 });
 
                 Promise.all(promises).then(results => {
+                    console.log('All collections completed:', results);
                     const total = results.reduce((sum, r) => sum + (r.items_collected || 0), 0);
                     this.showNotice('success', `Total de ${total} itens coletados de ${activeSources.length} fontes!`);
 
                     // Recarregar página após 2 segundos
                     setTimeout(() => location.reload(), 2000);
                 }).catch(error => {
+                    console.error('Error during collection:', error);
                     this.showNotice('error', 'Erro ao coletar de algumas fontes');
                 });
+            }).catch(error => {
+                console.error('Error fetching sources:', error);
+                this.showNotice('error', 'Erro ao carregar fontes: ' + (error.message || 'Erro desconhecido'));
             });
         },
 
