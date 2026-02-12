@@ -108,7 +108,6 @@
                         <option value="plone">Plone CMS (gov.br, IBRAM)</option>
                         <option value="wordpress">WordPress (blogs, sites)</option>
                         <option value="tainacan">Tainacan (acervos digitais)</option>
-                        <option value="visite_museus">Visite Museus (visite.museus.gov.br)</option>
                     </select>
                     <span class="nc-form-help"><?php _e('Selecione o tipo de site de onde deseja coletar conteúdo.', 'newsmast-curator'); ?></span>
                 </div>
@@ -212,23 +211,6 @@
                 </p>
             </div>
 
-            <!-- Visite Museus -->
-            <div class="nc-help-section">
-                <h3 class="nc-help-title">
-                    <span style="background:#F39C12;color:white;padding:3px 10px;border-radius:4px;font-size:12px;">Visite Museus</span>
-                    <?php _e('Portal Visite Museus', 'newsmast-curator'); ?>
-                </h3>
-                <p><?php _e('Para coletar informações de museus, exposições e eventos do portal visite.museus.gov.br.', 'newsmast-curator'); ?></p>
-                <div class="nc-help-example">
-                    <strong><?php _e('Exemplo:', 'newsmast-curator'); ?></strong><br>
-                    <code>URL: https://visite.museus.gov.br</code><br>
-                    <code>Coleção: museus, exposicoes ou eventos</code>
-                </div>
-                <p class="nc-help-tip">
-                    <span class="dashicons dashicons-info" style="color:var(--nc-accent);"></span>
-                    <?php _e('O portal usa Tainacan. Cada tipo de conteúdo é uma coleção separada.', 'newsmast-curator'); ?>
-                </p>
-            </div>
         </div>
         <div class="nc-modal-footer">
             <button type="button" class="nc-button nc-button-primary" onclick="NC.closeModal('nc-help-sources-modal')">
@@ -403,70 +385,6 @@ jQuery(document).ready(function($) {
                     <span class="nc-form-help">Como ordenar os itens ao buscar da coleção.</span>
                 </div>`;
 
-        } else if (type === 'visite_museus') {
-            $('#nc-source-url').val('https://visite.museus.gov.br');
-            $('#nc-source-url').attr('placeholder', 'https://visite.museus.gov.br');
-            $('#nc-url-label').text('URL do Portal *');
-            $('#nc-url-help').text('URL do portal Visite Museus (geralmente https://visite.museus.gov.br).');
-
-            instructions = `
-                <div class="nc-connector-info nc-connector-visite">
-                    <div class="nc-connector-info-header">
-                        <span class="dashicons dashicons-building"></span>
-                        <strong>Configurando fonte Visite Museus</strong>
-                    </div>
-                    <div class="nc-connector-info-body">
-                        <p>Coleta informações de museus, exposições e eventos do portal visite.museus.gov.br.</p>
-                        <div class="nc-connector-steps">
-                            <div class="nc-step"><span class="nc-step-num">1</span> A URL já vem preenchida automaticamente</div>
-                            <div class="nc-step"><span class="nc-step-num">2</span> Escolha a coleção desejada (museus, exposições ou eventos)</div>
-                            <div class="nc-step"><span class="nc-step-num">3</span> Opcionalmente filtre por estado</div>
-                        </div>
-                        <div class="nc-connector-tip">
-                            <span class="dashicons dashicons-lightbulb"></span>
-                            <span>O portal usa Tainacan. Cada tipo de conteúdo (museus, exposições, eventos) é uma coleção separada.</span>
-                        </div>
-                    </div>
-                </div>`;
-
-            fields = `
-                <div class="nc-form-group">
-                    <label class="nc-form-label">Coleção *</label>
-                    <select name="config[collection_slug]" class="nc-form-control" required>
-                        <option value="">Selecione a coleção...</option>
-                        <option value="museus">Museus - Lista de museus cadastrados</option>
-                        <option value="exposicoes">Exposições - Exposições em cartaz</option>
-                        <option value="eventos">Eventos - Eventos culturais</option>
-                    </select>
-                    <span class="nc-form-help">Escolha o tipo de conteúdo que deseja coletar do portal.</span>
-                </div>
-                <div class="nc-form-group">
-                    <label class="nc-form-label">Filtrar por Estado (opcional)</label>
-                    <select name="config[state]" class="nc-form-control">
-                        <option value="">Todos os estados</option>
-                        <option value="AC">Acre</option><option value="AL">Alagoas</option>
-                        <option value="AP">Amapá</option><option value="AM">Amazonas</option>
-                        <option value="BA">Bahia</option><option value="CE">Ceará</option>
-                        <option value="DF">Distrito Federal</option><option value="ES">Espírito Santo</option>
-                        <option value="GO">Goiás</option><option value="MA">Maranhão</option>
-                        <option value="MT">Mato Grosso</option><option value="MS">Mato Grosso do Sul</option>
-                        <option value="MG">Minas Gerais</option><option value="PA">Pará</option>
-                        <option value="PB">Paraíba</option><option value="PR">Paraná</option>
-                        <option value="PE">Pernambuco</option><option value="PI">Piauí</option>
-                        <option value="RJ">Rio de Janeiro</option><option value="RN">Rio Grande do Norte</option>
-                        <option value="RS">Rio Grande do Sul</option><option value="RO">Rondônia</option>
-                        <option value="RR">Roraima</option><option value="SC">Santa Catarina</option>
-                        <option value="SP">São Paulo</option><option value="SE">Sergipe</option>
-                        <option value="TO">Tocantins</option>
-                    </select>
-                    <span class="nc-form-help">Filtre por unidade federativa. Deixe vazio para coletar de todo o Brasil.</span>
-                </div>
-                <div class="nc-form-group">
-                    <label class="nc-form-label">Itens por Coleta</label>
-                    <input type="number" name="config[per_page]" class="nc-form-control" value="20" min="1" max="100"
-                           placeholder="20">
-                    <span class="nc-form-help">Quantidade de itens por coleta. <strong>Padrão: 20</strong>.</span>
-                </div>`;
         }
 
         $('#nc-connector-instructions').html(instructions);
@@ -496,8 +414,7 @@ NC.loadSources = function() {
             const statusLabel = s.status === 'active' ? 'Ativo' : s.status === 'error' ? 'Erro' : 'Inativo';
             const typeLabel = s.connector_type === 'plone' ? 'Plone CMS' :
                              s.connector_type === 'wordpress' ? 'WordPress' :
-                             s.connector_type === 'tainacan' ? 'Tainacan' :
-                             s.connector_type === 'visite_museus' ? 'Visite Museus' : s.connector_type;
+                             s.connector_type === 'tainacan' ? 'Tainacan' : s.connector_type;
             const lastCollection = s.last_collection ? new Date(s.last_collection).toLocaleString('pt-BR') : 'Nunca';
             const urlDisplay = s.url.length > 40 ? s.url.substring(0, 40) + '...' : s.url;
 

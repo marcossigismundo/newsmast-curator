@@ -4,7 +4,7 @@ Plugin WordPress para curadoria de conteúdo de múltiplas fontes e publicação
 
 ## Funcionalidades
 
-- **Coleta de múltiplas fontes**: Plone CMS, WordPress, Tainacan, Visite Museus
+- **Coleta de múltiplas fontes**: Plone CMS, WordPress, Tainacan
 - **Curadoria intuitiva**: Interface para aprovar/rejeitar itens coletados
 - **Publicação automatizada**: Agendamento e publicação no Mastodon/Newsmast
 - **Sistema de logs**: Rastreamento completo de todas as operações

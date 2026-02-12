@@ -1,7 +1,7 @@
 # Newsmast Curator - Contexto de Desenvolvimento
 
 ## Resumo do Projeto
-Plugin WordPress para coletar conteúdo de múltiplas fontes (Plone CMS, WordPress, Tainacan, Visite Museus), permitir curadoria administrativa e publicar automaticamente no Mastodon/Newsmast.
+Plugin WordPress para coletar conteúdo de múltiplas fontes (Plone CMS, WordPress, Tainacan), permitir curadoria administrativa e publicar automaticamente no Mastodon/Newsmast.
 
 ## Status Atual
 - **Fase**: Interface administrativa funcional, conectores e serviços implementados
@@ -59,8 +59,7 @@ newsmast-curator/
 │   │   ├── Connector_Registry.php  # Registry de conectores por tipo
 │   │   ├── Plone_Connector.php     # Scraping HTML com CSS selectors
 │   │   ├── WordPress_Connector.php # REST API wp/v2/posts
-│   │   ├── Tainacan_Connector.php  # API Tainacan por collection_id
-│   │   └── Visite_Museus_Connector.php # API visite.museus.gov.br
+│   │   └── Tainacan_Connector.php  # API Tainacan por collection_id
 │   ├── API/
 │   │   ├── Base_REST_Controller.php # Namespace newsmast-curator/v1
 │   │   ├── Sources_Controller.php   # CRUD + collect

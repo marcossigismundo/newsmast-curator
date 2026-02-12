@@ -258,7 +258,7 @@ class Source {
         }
 
         // Tipo de conector válido
-        $valid_types = ['plone', 'wordpress', 'tainacan', 'visite_museus'];
+        $valid_types = ['plone', 'wordpress', 'tainacan'];
         if (!in_array($this->connector_type, $valid_types)) {
             $this->errors['connector_type'] = __('Tipo de conector inválido.', 'newsmast-curator');
         }

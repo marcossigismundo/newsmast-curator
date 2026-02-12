@@ -24,16 +24,20 @@ class Admin_Controller {
             30
         );
 
-        add_submenu_page('newsmast-curator', __('Dashboard', 'newsmast-curator'), __('Dashboard', 'newsmast-curator'), 'manage_nc_items', 'newsmast-curator', [$this, 'render_page']);
-        add_submenu_page('newsmast-curator', __('Fontes', 'newsmast-curator'), __('Fontes', 'newsmast-curator'), 'manage_nc_sources', 'newsmast-curator-sources', [$this, 'render_page']);
-        add_submenu_page('newsmast-curator', __('Curadoria', 'newsmast-curator'), __('Curadoria', 'newsmast-curator'), 'manage_nc_items', 'newsmast-curator-curation', [$this, 'render_page']);
-        add_submenu_page('newsmast-curator', __('Fila', 'newsmast-curator'), __('Fila', 'newsmast-curator'), 'manage_nc_publications', 'newsmast-curator-queue', [$this, 'render_page']);
-        add_submenu_page('newsmast-curator', __('Configurações', 'newsmast-curator'), __('Configurações', 'newsmast-curator'), 'manage_nc_settings', 'newsmast-curator-settings', [$this, 'render_page']);
-        add_submenu_page('newsmast-curator', __('Sistema', 'newsmast-curator'), __('Sistema', 'newsmast-curator'), 'manage_nc_settings', 'newsmast-curator-system', [$this, 'render_page']);
+        // Hidden pages: accessible via plugin sidebar, not shown in WP admin submenu
+        add_submenu_page(null, __('Fontes', 'newsmast-curator'), '', 'manage_nc_sources', 'newsmast-curator-sources', [$this, 'render_page']);
+        add_submenu_page(null, __('Curadoria', 'newsmast-curator'), '', 'manage_nc_items', 'newsmast-curator-curation', [$this, 'render_page']);
+        add_submenu_page(null, __('Fila', 'newsmast-curator'), '', 'manage_nc_publications', 'newsmast-curator-queue', [$this, 'render_page']);
+        add_submenu_page(null, __('Configurações', 'newsmast-curator'), '', 'manage_nc_settings', 'newsmast-curator-settings', [$this, 'render_page']);
+        add_submenu_page(null, __('Sistema', 'newsmast-curator'), '', 'manage_nc_settings', 'newsmast-curator-system', [$this, 'render_page']);
+
+        // Remove auto-generated submenu for the main page
+        remove_submenu_page('newsmast-curator', 'newsmast-curator');
     }
 
     public function enqueue_assets($hook) {
-        if (strpos($hook, 'newsmast-curator') === false) return;
+        $page = isset($_GET['page']) ? sanitize_text_field($_GET['page']) : '';
+        if (strpos($page, 'newsmast-curator') === false) return;
 
         wp_enqueue_style('nc-admin', NC_ASSETS_URL . 'css/admin.css', [], $this->version);
         wp_enqueue_script('nc-admin', NC_ASSETS_URL . 'js/admin.js', ['jquery', 'wp-api-fetch'], $this->version, false);
@@ -41,18 +45,16 @@ class Admin_Controller {
         wp_localize_script('nc-admin', 'ncData', [
             'apiUrl' => '/newsmast-curator/v1',
             'nonce' => wp_create_nonce('wp_rest'),
-            'currentPage' => isset($_GET['page']) ? sanitize_text_field($_GET['page']) : 'newsmast-curator',
+            'currentPage' => $page,
         ]);
     }
 
     public function render_page() {
         $current_page = isset($_GET['page']) ? sanitize_text_field($_GET['page']) : 'newsmast-curator';
 
-        // Inicia o layout com sidebar
         $this->render_header();
         $this->render_sidebar($current_page);
 
-        // Renderiza o conteúdo da página
         echo '<div class="nc-main-content">';
 
         switch ($current_page) {
@@ -76,13 +78,17 @@ class Admin_Controller {
                 break;
         }
 
-        echo '</div>'; // .nc-main-content
+        echo '</div>';
         $this->render_footer();
     }
 
     private function render_header() {
         ?>
         <div class="nc-container">
+            <button class="nc-sidebar-toggle" onclick="NC.toggleSidebar()" aria-label="<?php esc_attr_e('Menu', 'newsmast-curator'); ?>">
+                <span class="dashicons dashicons-menu"></span>
+            </button>
+            <div class="nc-sidebar-overlay" onclick="NC.toggleSidebar()"></div>
         <?php
     }
 

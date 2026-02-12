@@ -108,12 +108,6 @@ class Connector_Registry {
             __('Coleta itens do plugin Tainacan', 'newsmast-curator')
         );
 
-        self::register(
-            'visite_museus',
-            '\\NewsmastCurator\\Connectors\\Visite_Museus_Connector',
-            __('Visite Museus', 'newsmast-curator'),
-            __('Coleta itens do portal Visite Museus', 'newsmast-curator')
-        );
     }
 }
 

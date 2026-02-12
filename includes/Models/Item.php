@@ -271,6 +271,7 @@ class Item {
             'curated_at' => $this->curated_at,
             'collected_at' => $this->collected_at,
             'preview_text' => $this->get_preview_text(),
+            'formatted_content' => $this->get_formatted_content(),
         ];
     }
 }
