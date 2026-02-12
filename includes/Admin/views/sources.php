@@ -425,6 +425,9 @@ NC.loadSources = function() {
                 <td><span class="nc-badge ${statusBadge}">${statusLabel}</span></td>
                 <td><small>${lastCollection}</small></td>
                 <td class="nc-table-actions">
+                    <button class="nc-button nc-button-secondary" onclick="NC.editSource(${s.id})" title="Editar esta fonte">
+                        <span class="dashicons dashicons-edit"></span>
+                    </button>
                     <button class="nc-button nc-button-primary" onclick="NC.collectSource(${s.id})" title="Coletar conteúdo agora">
                         <span class="dashicons dashicons-update"></span>
                         Coletar
@@ -486,6 +489,38 @@ NC.saveSource = function() {
         NC.loadSources();
     }).catch(error => {
         NC.showNotice('error', 'Erro ao salvar fonte: ' + (error.message || 'Erro desconhecido'));
+    });
+};
+
+NC.editSource = function(id) {
+    NC.showNotice('info', 'Carregando fonte...');
+
+    wp.apiFetch({path: `${ncData.apiUrl}/sources/${id}`}).then(source => {
+        jQuery('#nc-modal-title').text('Editar Fonte');
+        jQuery('#nc-source-id').val(source.id);
+        jQuery('#nc-source-name').val(source.name);
+
+        // Set type and trigger change to load dynamic fields
+        jQuery('#nc-source-type').val(source.connector_type).trigger('change');
+
+        // Wait for dynamic fields to render, then fill values
+        setTimeout(function() {
+            jQuery('#nc-source-url').val(source.url);
+
+            // Fill config fields
+            if (source.config && typeof source.config === 'object') {
+                Object.keys(source.config).forEach(function(key) {
+                    const $field = jQuery('#nc-config-fields').find(`[name="config[${key}]"]`);
+                    if ($field.length) {
+                        $field.val(source.config[key]);
+                    }
+                });
+            }
+        }, 100);
+
+        NC.openModal('nc-source-modal');
+    }).catch(error => {
+        NC.showNotice('error', 'Erro ao carregar fonte: ' + (error.message || 'Erro desconhecido'));
     });
 };
 
