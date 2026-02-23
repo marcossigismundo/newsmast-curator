@@ -182,7 +182,12 @@ NC.renderItemsList = function(items, curated) {
         }
         html += '</td>';
         var title = item.title.length > 80 ? NC.escapeHtml(item.title.substring(0, 80)) + '...' : NC.escapeHtml(item.title);
-        html += '<td><strong class="nc-item-title">' + title + '</strong></td>';
+        var excerpt = item.preview_text ? (item.preview_text.length > 100 ? NC.escapeHtml(item.preview_text.substring(0, 100)) + '...' : NC.escapeHtml(item.preview_text)) : '';
+        html += '<td><strong class="nc-item-title">' + title + '</strong>';
+        if (excerpt) {
+            html += '<div class="nc-list-excerpt">' + excerpt + '</div>';
+        }
+        html += '</td>';
         html += '<td>' + NC.escapeHtml(item.author || '-') + '</td>';
         html += '<td>' + new Date(item.collected_at).toLocaleDateString('pt-BR') + '</td>';
         html += '<td class="nc-table-actions">';

@@ -1265,6 +1265,14 @@ select.nc-form-control {
     background: var(--nc-secondary);
 }
 
+.nc-list-excerpt {
+    font-size: 12px;
+    color: var(--nc-text-light);
+    margin-top: 3px;
+    line-height: 1.4;
+    font-weight: 400;
+}
+
 /* ===========================
    Collections Page
    =========================== */
