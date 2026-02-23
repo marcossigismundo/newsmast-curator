@@ -1178,6 +1178,281 @@ select.nc-form-control {
 }
 
 /* ===========================
+   View Toggle
+   =========================== */
+
+.nc-view-toggle {
+    display: inline-flex;
+    border: 2px solid var(--nc-border);
+    border-radius: 8px;
+    overflow: hidden;
+    margin-right: 10px;
+}
+
+.nc-view-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border: none;
+    background: var(--nc-white);
+    color: var(--nc-text-light);
+    cursor: pointer;
+    transition: var(--nc-transition);
+    padding: 0;
+}
+
+.nc-view-btn:hover {
+    background: var(--nc-secondary);
+    color: var(--nc-text);
+}
+
+.nc-view-btn.active {
+    background: var(--nc-accent);
+    color: var(--nc-white);
+}
+
+.nc-view-btn .dashicons {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+}
+
+/* ===========================
+   Items List View
+   =========================== */
+
+.nc-items-list-view {
+    margin-top: 20px;
+}
+
+.nc-items-list-view .nc-table {
+    font-size: 13px;
+}
+
+.nc-items-list-view .nc-table th {
+    padding: 10px 15px;
+    font-size: 12px;
+}
+
+.nc-items-list-view .nc-table td {
+    padding: 10px 15px;
+    vertical-align: middle;
+}
+
+.nc-list-thumb {
+    width: 50px;
+    height: 35px;
+    object-fit: cover;
+    border-radius: 4px;
+    background: var(--nc-secondary);
+}
+
+.nc-list-thumb-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 50px;
+    height: 35px;
+    background: var(--nc-secondary);
+    border-radius: 4px;
+    color: var(--nc-text-light);
+    font-size: 18px;
+}
+
+.nc-item-row:hover {
+    background: var(--nc-secondary);
+}
+
+/* ===========================
+   Collections Page
+   =========================== */
+
+.nc-collections-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 20px;
+    margin-top: 20px;
+}
+
+.nc-collection-card {
+    background: var(--nc-white);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: var(--nc-shadow);
+    transition: var(--nc-transition);
+    border-left: 5px solid var(--nc-accent);
+}
+
+.nc-collection-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--nc-shadow-lg);
+}
+
+.nc-collection-header {
+    padding: 20px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.nc-collection-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.nc-collection-name {
+    margin: 0 0 5px 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--nc-text);
+}
+
+.nc-collection-desc {
+    font-size: 13px;
+    color: var(--nc-text-light);
+    margin: 0 0 10px 0;
+    line-height: 1.4;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+
+.nc-collection-meta {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 12px;
+    color: var(--nc-text-light);
+}
+
+.nc-collection-progress {
+    padding: 0 20px 15px;
+}
+
+.nc-progress-bar {
+    height: 6px;
+    background: var(--nc-border);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: 5px;
+}
+
+.nc-progress-fill {
+    height: 100%;
+    background: var(--nc-success);
+    border-radius: 3px;
+    transition: width 0.3s ease;
+}
+
+.nc-progress-text {
+    font-size: 11px;
+    color: var(--nc-text-light);
+}
+
+.nc-collection-footer {
+    padding: 15px 20px;
+    border-top: 1px solid var(--nc-border);
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.nc-collection-footer .nc-button {
+    padding: 6px 12px;
+    font-size: 12px;
+}
+
+.nc-color-swatch {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: 2px solid var(--nc-border);
+    flex-shrink: 0;
+    display: inline-block;
+}
+
+.nc-color-options {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.nc-color-option {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: 3px solid transparent;
+    cursor: pointer;
+    transition: var(--nc-transition);
+}
+
+.nc-color-option:hover,
+.nc-color-option.active {
+    border-color: var(--nc-text);
+    transform: scale(1.1);
+}
+
+.nc-collection-items-list {
+    max-height: 300px;
+    overflow-y: auto;
+    border: 1px solid var(--nc-border);
+    border-radius: 8px;
+}
+
+.nc-collection-item-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--nc-border);
+    font-size: 13px;
+}
+
+.nc-collection-item-row:last-child {
+    border-bottom: none;
+}
+
+.nc-collection-item-order {
+    background: var(--nc-accent);
+    color: var(--nc-white);
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 11px;
+    flex-shrink: 0;
+}
+
+.nc-collection-item-title {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.nc-collection-item-remove {
+    background: none;
+    border: none;
+    color: var(--nc-danger);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    transition: var(--nc-transition);
+}
+
+.nc-collection-item-remove:hover {
+    background: rgba(239, 71, 111, 0.1);
+}
+
+/* ===========================
    Responsive - WP Sidebar States
    =========================== */
 
@@ -1306,6 +1581,14 @@ body.folded .nc-sidebar {
 
     .nc-table-actions {
         flex-direction: column;
+    }
+
+    .nc-view-toggle {
+        display: none;
+    }
+
+    .nc-collections-grid {
+        grid-template-columns: 1fr;
     }
 }
 

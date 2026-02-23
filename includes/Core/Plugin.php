@@ -176,6 +176,10 @@ class Plugin {
             // Logs Controller
             $logs = new \NewsmastCurator\API\Logs_Controller($this->database);
             $logs->register_routes();
+
+            // Collections Controller
+            $collections = new \NewsmastCurator\API\Collections_Controller($this->database);
+            $collections->register_routes();
         });
     }
 

@@ -1,0 +1,857 @@
+# Copyright (C) 2026 Newsmast Curator
+# This file is distributed under the same license as the Newsmast Curator plugin.
+msgid ""
+msgstr ""
+"Project-Id-Version: Newsmast Curator 1.0.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-02-23 00:00+0000\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: Portuguese (Brazil) <>\n"
+"Language: pt_BR\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+"X-Generator: Newsmast Curator\n"
+"X-Domain: newsmast-curator\n"
+
+msgid "Mastodon não configurado"
+msgstr ""
+
+msgid "Erro ao fazer upload: %d"
+msgstr ""
+
+msgid "Erro API Mastodon: %d"
+msgstr ""
+
+msgid "Plone CMS"
+msgstr ""
+
+msgid "Coleta notícias de sites Plone via scraping"
+msgstr ""
+
+msgid "WordPress"
+msgstr ""
+
+msgid "Coleta posts via REST API do WordPress"
+msgstr ""
+
+msgid "Tainacan"
+msgstr ""
+
+msgid "Coleta itens do plugin Tainacan"
+msgstr ""
+
+msgid "URL é obrigatória"
+msgstr ""
+
+msgid "CSS Selector dos Itens"
+msgstr ""
+
+msgid "%d itens encontrados"
+msgstr ""
+
+msgid "Coleção não encontrada"
+msgstr ""
+
+msgid "Nome é obrigatório"
+msgstr ""
+
+msgid "Validação falhou"
+msgstr ""
+
+msgid "Falha ao criar coleção"
+msgstr ""
+
+msgid "Nenhum item fornecido"
+msgstr ""
+
+msgid "Lista de itens inválida"
+msgstr ""
+
+msgid "Data de agendamento é obrigatória"
+msgstr ""
+
+msgid "Data de agendamento deve ser no futuro"
+msgstr ""
+
+msgid "Intervalo deve ser pelo menos 1 minuto"
+msgstr ""
+
+msgid "Coleção não possui itens"
+msgstr ""
+
+msgid "Newsmast Curator"
+msgstr ""
+
+msgid "Newsmast"
+msgstr ""
+
+msgid "Fontes"
+msgstr ""
+
+msgid "Curadoria"
+msgstr ""
+
+msgid "Fila"
+msgstr ""
+
+msgid "Configurações"
+msgstr ""
+
+msgid "Coleções"
+msgstr ""
+
+msgid "Sistema"
+msgstr ""
+
+msgid "Carregando..."
+msgstr ""
+
+msgid "Cancelar"
+msgstr ""
+
+msgid "Adicionar"
+msgstr ""
+
+msgid "Selecionar"
+msgstr ""
+
+msgid "Opções"
+msgstr ""
+
+msgid "caracteres"
+msgstr ""
+
+msgid "Data e Hora"
+msgstr ""
+
+msgid "De"
+msgstr ""
+
+msgid "até"
+msgstr ""
+
+msgid "itens"
+msgstr ""
+
+msgid "Sem título"
+msgstr ""
+
+msgid "Imagem"
+msgstr ""
+
+msgid "Título"
+msgstr ""
+
+msgid "Fonte"
+msgstr ""
+
+msgid "Data"
+msgstr ""
+
+msgid "Ações"
+msgstr ""
+
+msgid "Descrição"
+msgstr ""
+
+msgid "Iniciando coleta..."
+msgstr ""
+
+msgid "itens coletados!"
+msgstr ""
+
+msgid "Erro na coleta: "
+msgstr ""
+
+msgid "Iniciar coleta de todas as fontes ativas?"
+msgstr ""
+
+msgid "Coletando de todas as fontes..."
+msgstr ""
+
+msgid "Nenhuma fonte ativa encontrada"
+msgstr ""
+
+msgid "itens coletados de "
+msgstr ""
+
+msgid "fontes!"
+msgstr ""
+
+msgid "Erro ao coletar de algumas fontes"
+msgstr ""
+
+msgid "Erro ao carregar fontes: "
+msgstr ""
+
+msgid "Item aprovado!"
+msgstr ""
+
+msgid "Erro ao aprovar: "
+msgstr ""
+
+msgid "Selecione ao menos um item"
+msgstr ""
+
+msgid "Aprovar"
+msgstr ""
+
+msgid "itens selecionados?"
+msgstr ""
+
+msgid "itens aprovados!"
+msgstr ""
+
+msgid "Erro ao aprovar itens"
+msgstr ""
+
+msgid "Agendar"
+msgstr ""
+
+msgid "Ver Original"
+msgstr ""
+
+msgid "Nenhum item novo para curadoria. Execute uma coleta para trazer novos itens."
+msgstr ""
+
+msgid "Nenhum item aprovado ainda. Aprove itens na aba \"Novos\"."
+msgstr ""
+
+msgid "Erro ao carregar itens"
+msgstr ""
+
+msgid "Agendar Publicação"
+msgstr ""
+
+msgid "Item aprovado"
+msgstr ""
+
+msgid "Carregando itens aprovados..."
+msgstr ""
+
+msgid "Selecione um item aprovado na curadoria"
+msgstr ""
+
+msgid "Selecione um item aprovado..."
+msgstr ""
+
+msgid "Nenhum item aprovado encontrado"
+msgstr ""
+
+msgid "Conteúdo do Post"
+msgstr ""
+
+msgid "O conteúdo será preenchido automaticamente ao selecionar um item..."
+msgstr ""
+
+msgid "Edite o texto que será publicado no Mastodon"
+msgstr ""
+
+msgid "Incluir imagem (se disponível)"
+msgstr ""
+
+msgid "Incluir imagens (quando disponíveis)"
+msgstr ""
+
+msgid "O conteúdo excede 500 caracteres. Reduza o texto antes de agendar."
+msgstr ""
+
+msgid "Publicação agendada com sucesso!"
+msgstr ""
+
+msgid "Erro ao agendar: "
+msgstr ""
+
+msgid "Selecione ao menos um item para agendar"
+msgstr ""
+
+msgid "Agendar em Lote"
+msgstr ""
+
+msgid "itens selecionados serão agendados automaticamente com o template configurado."
+msgstr ""
+
+msgid "Primeira publicação"
+msgstr ""
+
+msgid "Data/hora da primeira publicação"
+msgstr ""
+
+msgid "Intervalo entre posts"
+msgstr ""
+
+msgid "Tempo entre cada publicação"
+msgstr ""
+
+msgid "A cada 30 minutos"
+msgstr ""
+
+msgid "A cada 1 hora"
+msgstr ""
+
+msgid "A cada 2 horas"
+msgstr ""
+
+msgid "A cada 6 horas"
+msgstr ""
+
+msgid "A cada 12 horas"
+msgstr ""
+
+msgid "A cada 24 horas"
+msgstr ""
+
+msgid "Cronograma previsto"
+msgstr ""
+
+msgid "Configure a data e o intervalo"
+msgstr ""
+
+msgid "Agendar Todos"
+msgstr ""
+
+msgid "Configure a data da primeira publicação"
+msgstr ""
+
+msgid "A data da primeira publicação deve ser no futuro"
+msgstr ""
+
+msgid "Agendando"
+msgstr ""
+
+msgid "publicações..."
+msgstr ""
+
+msgid "publicações agendadas com sucesso!"
+msgstr ""
+
+msgid "Cancelar esta publicação agendada?"
+msgstr ""
+
+msgid "Publicação cancelada!"
+msgstr ""
+
+msgid "Erro ao cancelar: "
+msgstr ""
+
+msgid "Reagendar esta publicação?"
+msgstr ""
+
+msgid "A publicação será reprocessada automaticamente na próxima execução do cron."
+msgstr ""
+
+msgid "Testando conexão..."
+msgstr ""
+
+msgid "Conectado como"
+msgstr ""
+
+msgid "Falha na conexão: "
+msgstr ""
+
+msgid "Erro ao testar: "
+msgstr ""
+
+msgid "Configurações salvas!"
+msgstr ""
+
+msgid "Erro ao salvar: "
+msgstr ""
+
+msgid "Adicionar à Coleção"
+msgstr ""
+
+msgid "itens selecionados"
+msgstr ""
+
+msgid "Selecionar Coleção"
+msgstr ""
+
+msgid "-- Selecione --"
+msgstr ""
+
+msgid "+ Criar nova coleção"
+msgstr ""
+
+msgid "Nome da Coleção"
+msgstr ""
+
+msgid "Ex: Semana dos Museus 2026"
+msgstr ""
+
+msgid "Selecione uma coleção"
+msgstr ""
+
+msgid "Nome da coleção é obrigatório"
+msgstr ""
+
+msgid "Erro ao criar coleção: "
+msgstr ""
+
+msgid "itens adicionados à coleção!"
+msgstr ""
+
+msgid "Erro ao adicionar: "
+msgstr ""
+
+msgid "Nova Coleção"
+msgstr ""
+
+msgid "Criar"
+msgstr ""
+
+msgid "Editar"
+msgstr ""
+
+msgid "Excluir"
+msgstr ""
+
+msgid "Excluir esta coleção? Os itens não serão removidos."
+msgstr ""
+
+msgid "Coleção excluída!"
+msgstr ""
+
+msgid "Erro ao excluir: "
+msgstr ""
+
+msgid "Agendar Coleção"
+msgstr ""
+
+msgid "Coleção agendada!"
+msgstr ""
+
+msgid "Adicione itens à coleção antes de agendar"
+msgstr ""
+
+msgid "publicados de"
+msgstr ""
+
+msgid "Nenhuma coleção encontrada. Crie sua primeira coleção!"
+msgstr ""
+
+msgid "Adicionar Itens"
+msgstr ""
+
+msgid "Itens da Coleção"
+msgstr ""
+
+msgid "Remover"
+msgstr ""
+
+msgid "Item removido!"
+msgstr ""
+
+msgid "Salvar"
+msgstr ""
+
+msgid "Coleção salva!"
+msgstr ""
+
+msgid "Cor"
+msgstr ""
+
+msgid "Remover este item da coleção?"
+msgstr ""
+
+msgid "Menu"
+msgstr ""
+
+msgid "Dashboard"
+msgstr ""
+
+msgid "Visão geral"
+msgstr ""
+
+msgid "Gerenciar fontes de conteúdo"
+msgstr ""
+
+msgid "Aprovar itens coletados"
+msgstr ""
+
+msgid "Agrupar itens em coleções"
+msgstr ""
+
+msgid "Fila de Publicação"
+msgstr ""
+
+msgid "Agendar publicações"
+msgstr ""
+
+msgid "Configurar Mastodon"
+msgstr ""
+
+msgid "Logs e informações"
+msgstr ""
+
+msgid "Curadoria e publicação automatizada"
+msgstr ""
+
+msgid "Versão %s"
+msgstr ""
+
+msgid "URL obrigatória"
+msgstr ""
+
+msgid "Endpoint da API"
+msgstr ""
+
+msgid "Posts por página"
+msgstr ""
+
+msgid "%d posts encontrados"
+msgstr ""
+
+msgid "Nome é obrigatório."
+msgstr ""
+
+msgid "Status inválido."
+msgstr ""
+
+msgid "Rascunho"
+msgstr ""
+
+msgid "Agendada"
+msgstr ""
+
+msgid "Publicada"
+msgstr ""
+
+msgid "Parcial"
+msgstr ""
+
+msgid "Item é obrigatório"
+msgstr ""
+
+msgid "Item não encontrado"
+msgstr ""
+
+msgid "Conteúdo é obrigatório"
+msgstr ""
+
+msgid "Falha ao criar publicação"
+msgstr ""
+
+msgid "Gerencie publicações agendadas para o Mastodon"
+msgstr ""
+
+msgid "Selecione um item aprovado na curadoria, edite o conteúdo e agende a data/hora da publicação no Mastodon."
+msgstr ""
+
+msgid "Agendadas"
+msgstr ""
+
+msgid "Publicadas"
+msgstr ""
+
+msgid "Falhas"
+msgstr ""
+
+msgid "Coletar Agora"
+msgstr ""
+
+msgid "Visão geral do sistema de curadoria"
+msgstr ""
+
+msgid "Fontes Ativas"
+msgstr ""
+
+msgid "Itens Coletados"
+msgstr ""
+
+msgid "Itens Aprovados"
+msgstr ""
+
+msgid "Publicações Agendadas"
+msgstr ""
+
+msgid "Atividade Recente"
+msgstr ""
+
+msgid "Próximas Publicações"
+msgstr ""
+
+msgid "Ver Todas"
+msgstr ""
+
+msgid "ID da Coleção"
+msgstr ""
+
+msgid "Itens por página"
+msgstr ""
+
+msgid "Salvar Alterações"
+msgstr ""
+
+msgid "Configure a integração com Mastodon e o formato das publicações"
+msgstr ""
+
+msgid "Conexão Mastodon"
+msgstr ""
+
+msgid "Testar Conexão"
+msgstr ""
+
+msgid "Instância Mastodon"
+msgstr ""
+
+msgid "URL completa da instância Mastodon (ex: https://mastodon.social)"
+msgstr ""
+
+msgid "Token de Acesso"
+msgstr ""
+
+msgid "Obtenha em: Sua Instância → Configurações → Desenvolvimento → Novo Aplicativo"
+msgstr ""
+
+msgid "Formato de Posts"
+msgstr ""
+
+msgid "Variáveis Disponíveis"
+msgstr ""
+
+msgid "Título do item coletado da fonte"
+msgstr ""
+
+msgid "Resumo ou trecho do conteúdo (auto-gerado se vazio)"
+msgstr ""
+
+msgid "Link original do item na fonte de conteúdo"
+msgstr ""
+
+msgid "Hashtags padrão definidas abaixo"
+msgstr ""
+
+msgid "Template Padrão"
+msgstr ""
+
+msgid "Este template será usado como base ao agendar publicações. Você pode editar o conteúdo individualmente ao agendar."
+msgstr ""
+
+msgid "Hashtags Padrão"
+msgstr ""
+
+msgid "Estas hashtags substituem a variável {hashtags} no template"
+msgstr ""
+
+msgid "Preview (exemplo com dados fictícios)"
+msgstr ""
+
+msgid "Tipo de conector inválido."
+msgstr ""
+
+msgid "URL inválida."
+msgstr ""
+
+msgid "Fontes de Conteúdo"
+msgstr ""
+
+msgid "Ajuda"
+msgstr ""
+
+msgid "Nova Fonte"
+msgstr ""
+
+msgid "Gerencie as fontes de onde o conteúdo é coletado automaticamente para curadoria e publicação no Mastodon."
+msgstr ""
+
+msgid "Como funciona?"
+msgstr ""
+
+msgid "Cadastre uma fonte"
+msgstr ""
+
+msgid "Clique em \"Nova Fonte\" e preencha os dados."
+msgstr ""
+
+msgid "Colete conteúdo"
+msgstr ""
+
+msgid "Clique \"Coletar\" ou aguarde a coleta automática."
+msgstr ""
+
+msgid "Faça a curadoria"
+msgstr ""
+
+msgid "Vá em Curadoria e aprove os itens coletados."
+msgstr ""
+
+msgid "Publique no Mastodon"
+msgstr ""
+
+msgid "Agende ou publique os itens aprovados."
+msgstr ""
+
+msgid "Fontes Cadastradas"
+msgstr ""
+
+msgid "Coletar Todas"
+msgstr ""
+
+msgid "Nome da Fonte"
+msgstr ""
+
+msgid "Ex: Notícias IBRAM, Blog do Museu Nacional..."
+msgstr ""
+
+msgid "Escolha um nome descritivo para identificar esta fonte facilmente."
+msgstr ""
+
+msgid "Tipo de Conector"
+msgstr ""
+
+msgid "Selecione o tipo de site..."
+msgstr ""
+
+msgid "Selecione o tipo de site de onde deseja coletar conteúdo."
+msgstr ""
+
+msgid "URL"
+msgstr ""
+
+msgid "URL completa da fonte de conteúdo"
+msgstr ""
+
+msgid "Salvar Fonte"
+msgstr ""
+
+msgid "Guia de Fontes de Conteúdo"
+msgstr ""
+
+msgid "As fontes de conteúdo são sites de onde o plugin coleta automaticamente notícias, eventos e itens de acervo para que você possa selecionar e publicar no Mastodon."
+msgstr ""
+
+msgid "Sites Plone CMS (gov.br)"
+msgstr ""
+
+msgid "Para coletar notícias de sites do governo que usam Plone CMS, como o portal do IBRAM."
+msgstr ""
+
+msgid "Exemplo:"
+msgstr ""
+
+msgid "O conector faz scraping da página HTML. Os seletores CSS padrão funcionam para a maioria dos sites gov.br."
+msgstr ""
+
+msgid "Sites WordPress"
+msgstr ""
+
+msgid "Para coletar posts de qualquer site WordPress com REST API habilitada (padrão desde WP 4.7)."
+msgstr ""
+
+msgid "Teste antes: acesse site.com/wp-json/wp/v2/posts no navegador. Se retornar JSON, a API está ativa."
+msgstr ""
+
+msgid "Repositórios Tainacan"
+msgstr ""
+
+msgid "Para coletar itens de acervos digitais que usam o plugin Tainacan."
+msgstr ""
+
+msgid "O ID da coleção está na URL do admin do Tainacan: /admin/#/collections/123/items"
+msgstr ""
+
+msgid "Entendi!"
+msgstr ""
+
+msgid "Este plugin requer WordPress 5.8 ou superior."
+msgstr ""
+
+msgid "Este plugin requer PHP 7.4 ou superior."
+msgstr ""
+
+msgid "Este plugin requer a extensão PHP %s."
+msgstr ""
+
+msgid "A cada 5 minutos"
+msgstr ""
+
+msgid "Sistema e Logs"
+msgstr ""
+
+msgid "Informações do sistema e registro de atividades"
+msgstr ""
+
+msgid "Informações do Sistema"
+msgstr ""
+
+msgid "Versão do Plugin"
+msgstr ""
+
+msgid "Banco de Dados"
+msgstr ""
+
+msgid "Cron Jobs"
+msgstr ""
+
+msgid "Job"
+msgstr ""
+
+msgid "Próxima Execução"
+msgstr ""
+
+msgid "Coleta de Fontes"
+msgstr ""
+
+msgid "Processamento de Publicações"
+msgstr ""
+
+msgid "Limpeza de Logs"
+msgstr ""
+
+msgid "Não agendado"
+msgstr ""
+
+msgid "Logs Recentes"
+msgstr ""
+
+msgid "Todos"
+msgstr ""
+
+msgid "Agrupe itens curados em coleções temáticas para agendamento coordenado"
+msgstr ""
+
+msgid "Todas"
+msgstr ""
+
+msgid "Rascunhos"
+msgstr ""
+
+msgid "Visualização em Grade"
+msgstr ""
+
+msgid "Visualização em Lista"
+msgstr ""
+
+msgid "Aprovar Selecionados"
+msgstr ""
+
+msgid "Agendar Selecionados"
+msgstr ""
+
+msgid "Revise e aprove itens para publicação no Mastodon"
+msgstr ""
+
+msgid "Novos"
+msgstr ""
+
+msgid "Aprovados"
+msgstr ""
+
+msgid "Selecionar Todos"
+msgstr ""
+
+msgid "selecionados"
+msgstr ""
+
+msgid "ID da coleção obrigatório"
+msgstr ""
+
+msgid "Documentação"
+msgstr ""
+
+msgid "Suporte"
+msgstr ""

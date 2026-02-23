@@ -5,6 +5,14 @@
             <?php _e('Curadoria', 'newsmast-curator'); ?>
         </h1>
         <div class="nc-page-actions">
+            <div class="nc-view-toggle" id="nc-view-toggle">
+                <button class="nc-view-btn active" data-view="grid" onclick="NC.setViewMode('grid')" title="<?php esc_attr_e('Visualização em Grade', 'newsmast-curator'); ?>">
+                    <span class="dashicons dashicons-grid-view"></span>
+                </button>
+                <button class="nc-view-btn" data-view="list" onclick="NC.setViewMode('list')" title="<?php esc_attr_e('Visualização em Lista', 'newsmast-curator'); ?>">
+                    <span class="dashicons dashicons-list-view"></span>
+                </button>
+            </div>
             <button class="nc-button nc-button-success" id="nc-btn-bulk-curate" onclick="NC.bulkCurate()">
                 <span class="dashicons dashicons-yes"></span>
                 <?php _e('Aprovar Selecionados', 'newsmast-curator'); ?>
@@ -12,6 +20,10 @@
             <button class="nc-button nc-button-primary" id="nc-btn-bulk-schedule" style="display:none;" onclick="NC.openBulkScheduleModal()">
                 <span class="dashicons dashicons-calendar-alt"></span>
                 <?php _e('Agendar Selecionados', 'newsmast-curator'); ?>
+            </button>
+            <button class="nc-button nc-button-secondary" id="nc-btn-add-to-collection" style="display:none;" onclick="NC.openAddToCollectionModal()">
+                <span class="dashicons dashicons-portfolio"></span>
+                <?php _e('Adicionar à Coleção', 'newsmast-curator'); ?>
             </button>
         </div>
     </div>
@@ -44,16 +56,17 @@
 
 <script>
 jQuery(document).ready(function($) {
-    // Load counters
     wp.apiFetch({path: ncData.apiUrl + '/items/stats'}).then(function(stats) {
         $('#nc-uncurated-count').text(stats.uncurated || 0);
         $('#nc-curated-count').text(stats.curated || 0);
     });
 
-    // Load uncurated items
+    NC._viewMode = localStorage.getItem('nc_view_mode') || 'grid';
+    $('#nc-view-toggle .nc-view-btn').removeClass('active');
+    $('#nc-view-toggle .nc-view-btn[data-view="' + NC._viewMode + '"]').addClass('active');
+
     NC.loadItems(0);
 
-    // Update selected count on checkbox change
     jQuery(document).on('change', '.nc-item-checkbox', function() {
         var count = jQuery('.nc-item-checkbox:checked').length;
         if (count > 0) {
@@ -70,26 +83,25 @@ NC._currentCuratedTab = 0;
 NC.loadItems = function(curated) {
     NC._currentCuratedTab = curated;
 
-    // Toggle header buttons based on tab
     if (curated === 1) {
         jQuery('#nc-btn-bulk-curate').hide();
         jQuery('#nc-btn-bulk-schedule').show();
+        jQuery('#nc-btn-add-to-collection').show();
     } else {
         jQuery('#nc-btn-bulk-curate').show();
         jQuery('#nc-btn-bulk-schedule').hide();
+        jQuery('#nc-btn-add-to-collection').hide();
     }
 
-    // Reset selection
     jQuery('#nc-selected-count').hide();
     jQuery('#nc-select-all-header input[type="checkbox"]').prop('checked', false);
-
     jQuery('#nc-items-list').html('<div class="nc-loading"><div class="nc-spinner"></div></div>');
 
     wp.apiFetch({path: ncData.apiUrl + '/items?curated=' + curated + '&per_page=50'}).then(function(data) {
         if (!data.items || data.items.length === 0) {
             var emptyMsg = curated === 0 ?
-                'Nenhum item novo para curadoria. Execute uma coleta para trazer novos itens.' :
-                'Nenhum item aprovado ainda. Aprove itens na aba "Novos".';
+                NC.__('no_new_items', 'Nenhum item novo para curadoria. Execute uma coleta para trazer novos itens.') :
+                NC.__('no_approved_items_yet', 'Nenhum item aprovado ainda. Aprove itens na aba "Novos".');
             jQuery('#nc-items-list').html(
                 '<div class="nc-empty-state">' +
                     '<span class="dashicons dashicons-' + (curated === 0 ? 'inbox' : 'yes-alt') + '"></span>' +
@@ -99,62 +111,176 @@ NC.loadItems = function(curated) {
             return;
         }
 
-        var html = '<div class="nc-items-grid">';
-        data.items.forEach(function(item) {
-            html += '<div class="nc-item-card" data-item-id="' + item.id + '">';
-
-            if (item.image_url) {
-                html += '<img src="' + item.image_url + '" class="nc-item-image" alt="">';
-            }
-
-            html += '<div class="nc-item-content">';
-
-            // Checkboxes on BOTH tabs
-            html += '<label style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">' +
-                '<input type="checkbox" class="nc-item-checkbox" value="' + item.id + '"' +
-                ' data-formatted="' + encodeURIComponent(item.formatted_content || '') + '">' +
-                '<span style="font-size:12px;color:#6C757D;">Selecionar</span>' +
-                '</label>';
-
-            html += '<h3 class="nc-item-title">' + item.title + '</h3>' +
-                '<div class="nc-item-meta">' +
-                    '<span><span class="dashicons dashicons-calendar" style="font-size:14px;"></span> ' +
-                    new Date(item.collected_at).toLocaleDateString('pt-BR') + '</span>';
-
-            if (item.author) {
-                html += '<span><span class="dashicons dashicons-admin-users" style="font-size:14px;"></span> ' + item.author + '</span>';
-            }
-
-            html += '</div>' +
-                '<p class="nc-item-excerpt">' + item.preview_text + '</p>' +
-                '<div class="nc-item-actions">';
-
-            // Actions depend on tab
-            if (curated === 0) {
-                html += '<button class="nc-button nc-button-success" onclick="NC.curateItem(' + item.id + ')">' +
-                    '<span class="dashicons dashicons-yes-alt"></span> Aprovar' +
-                    '</button>';
-            } else {
-                // Approved items: show schedule button
-                html += '<button class="nc-button nc-button-primary" onclick="NC.openScheduleModal(' + item.id + ')">' +
-                    '<span class="dashicons dashicons-calendar-alt"></span> Agendar' +
-                    '</button>';
-            }
-
-            html += '<a href="' + item.url + '" target="_blank" class="nc-button nc-button-secondary">' +
-                '<span class="dashicons dashicons-external"></span> Ver Original' +
-                '</a>' +
-                '</div></div></div>';
-        });
-        html += '</div>';
-
+        var viewMode = NC._viewMode || 'grid';
+        var html = viewMode === 'list' ? NC.renderItemsList(data.items, curated) : NC.renderItemsGrid(data.items, curated);
         jQuery('#nc-items-list').html(html);
     }).catch(function() {
         jQuery('#nc-items-list').html(
             '<div class="nc-notice nc-notice-error">' +
-                '<span class="dashicons dashicons-dismiss"></span> Erro ao carregar itens' +
+                '<span class="dashicons dashicons-dismiss"></span> ' + NC.__('load_items_error', 'Erro ao carregar itens') +
             '</div>'
         );
     });
+};
+
+NC.renderItemsGrid = function(items, curated) {
+    var html = '<div class="nc-items-grid">';
+    items.forEach(function(item) {
+        html += '<div class="nc-item-card" data-item-id="' + item.id + '">';
+        if (item.image_url) {
+            html += '<img src="' + NC.escapeHtml(item.image_url) + '" class="nc-item-image" alt="">';
+        }
+        html += '<div class="nc-item-content">';
+        html += '<label style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">' +
+            '<input type="checkbox" class="nc-item-checkbox" value="' + item.id + '"' +
+            ' data-formatted="' + encodeURIComponent(item.formatted_content || '') + '">' +
+            '<span style="font-size:12px;color:#6C757D;">' + NC.__('select', 'Selecionar') + '</span></label>';
+
+        html += '<h3 class="nc-item-title">' + NC.escapeHtml(item.title) + '</h3>' +
+            '<div class="nc-item-meta">' +
+                '<span><span class="dashicons dashicons-calendar" style="font-size:14px;"></span> ' +
+                new Date(item.collected_at).toLocaleDateString('pt-BR') + '</span>';
+        if (item.author) {
+            html += '<span><span class="dashicons dashicons-admin-users" style="font-size:14px;"></span> ' + NC.escapeHtml(item.author) + '</span>';
+        }
+        html += '</div><p class="nc-item-excerpt">' + NC.escapeHtml(item.preview_text) + '</p>' +
+            '<div class="nc-item-actions">';
+        if (curated === 0) {
+            html += '<button class="nc-button nc-button-success" onclick="NC.curateItem(' + item.id + ')">' +
+                '<span class="dashicons dashicons-yes-alt"></span> ' + NC.__('approve', 'Aprovar') + '</button>';
+        } else {
+            html += '<button class="nc-button nc-button-primary" onclick="NC.openScheduleModal(' + item.id + ')">' +
+                '<span class="dashicons dashicons-calendar-alt"></span> ' + NC.__('schedule', 'Agendar') + '</button>';
+        }
+        html += '<a href="' + NC.escapeHtml(item.url) + '" target="_blank" class="nc-button nc-button-secondary">' +
+            '<span class="dashicons dashicons-external"></span> ' + NC.__('view_original', 'Ver Original') + '</a>' +
+            '</div></div></div>';
+    });
+    html += '</div>';
+    return html;
+};
+
+NC.renderItemsList = function(items, curated) {
+    var html = '<div class="nc-items-list-view"><table class="nc-table"><thead><tr>' +
+        '<th style="width:40px;"><input type="checkbox" onchange="NC.selectAll(this)"></th>' +
+        '<th style="width:60px;">' + NC.__('image', 'Imagem') + '</th>' +
+        '<th>' + NC.__('title', 'Título') + '</th>' +
+        '<th>' + NC.__('source_author', 'Fonte') + '</th>' +
+        '<th>' + NC.__('date', 'Data') + '</th>' +
+        '<th>' + NC.__('actions', 'Ações') + '</th>' +
+        '</tr></thead><tbody>';
+
+    items.forEach(function(item) {
+        html += '<tr data-item-id="' + item.id + '">';
+        html += '<td><input type="checkbox" class="nc-item-checkbox" value="' + item.id + '"' +
+            ' data-formatted="' + encodeURIComponent(item.formatted_content || '') + '"></td>';
+        html += '<td>';
+        if (item.image_url) {
+            html += '<img src="' + NC.escapeHtml(item.image_url) + '" class="nc-list-thumb" alt="">';
+        } else {
+            html += '<span class="nc-list-thumb-placeholder dashicons dashicons-format-image"></span>';
+        }
+        html += '</td>';
+        var title = item.title.length > 80 ? NC.escapeHtml(item.title.substring(0, 80)) + '...' : NC.escapeHtml(item.title);
+        html += '<td><strong class="nc-item-title">' + title + '</strong></td>';
+        html += '<td>' + NC.escapeHtml(item.author || '-') + '</td>';
+        html += '<td>' + new Date(item.collected_at).toLocaleDateString('pt-BR') + '</td>';
+        html += '<td class="nc-table-actions">';
+        if (curated === 0) {
+            html += '<button class="nc-button nc-button-success" onclick="NC.curateItem(' + item.id + ')" title="' + NC.__('approve', 'Aprovar') + '">' +
+                '<span class="dashicons dashicons-yes-alt"></span></button>';
+        } else {
+            html += '<button class="nc-button nc-button-primary" onclick="NC.openScheduleModal(' + item.id + ')" title="' + NC.__('schedule', 'Agendar') + '">' +
+                '<span class="dashicons dashicons-calendar-alt"></span></button>';
+        }
+        html += '<a href="' + NC.escapeHtml(item.url) + '" target="_blank" class="nc-button nc-button-secondary" title="' + NC.__('view_original', 'Ver Original') + '">' +
+            '<span class="dashicons dashicons-external"></span></a>';
+        html += '</td></tr>';
+    });
+    html += '</tbody></table></div>';
+    return html;
+};
+
+// ========== Add to Collection Modal ==========
+
+NC.openAddToCollectionModal = function() {
+    var $checked = jQuery('.nc-item-checkbox:checked');
+    if ($checked.length === 0) {
+        NC.showNotice('warning', NC.__('select_at_least_one', 'Selecione ao menos um item'));
+        return;
+    }
+    if (!jQuery('#nc-add-collection-modal').length) { NC.createAddToCollectionModal(); }
+    NC._selectedItemIds = $checked.map(function() { return jQuery(this).val(); }).get();
+    jQuery('#nc-collection-item-count').text(NC._selectedItemIds.length);
+    NC.loadCollectionDropdown();
+    NC.openModal('nc-add-collection-modal');
+};
+
+NC.createAddToCollectionModal = function() {
+    var html =
+    '<div id="nc-add-collection-modal" class="nc-modal-overlay">' +
+        '<div class="nc-modal" style="max-width:500px;">' +
+            '<div class="nc-modal-header">' +
+                '<h3 class="nc-modal-title"><span class="dashicons dashicons-portfolio" style="color:var(--nc-accent);"></span> ' +
+                    NC.__('add_to_collection', 'Adicionar à Coleção') + '</h3>' +
+                '<button class="nc-modal-close" onclick="NC.closeModal(\'nc-add-collection-modal\')">&times;</button>' +
+            '</div>' +
+            '<div class="nc-modal-body">' +
+                '<div class="nc-notice nc-notice-info" style="margin-bottom:20px;"><span class="dashicons dashicons-info"></span>' +
+                    '<span><strong id="nc-collection-item-count">0</strong> ' + NC.__('items_selected', 'itens selecionados') + '</span></div>' +
+                '<div class="nc-form-group"><label class="nc-form-label">' + NC.__('select_collection', 'Selecionar Coleção') + '</label>' +
+                    '<select id="nc-collection-select" class="nc-form-control"><option value="">' + NC.__('loading', 'Carregando...') + '</option></select></div>' +
+                '<div class="nc-form-group" id="nc-new-collection-fields" style="display:none;">' +
+                    '<label class="nc-form-label">' + NC.__('collection_name', 'Nome da Coleção') + ' *</label>' +
+                    '<input type="text" id="nc-new-collection-name" class="nc-form-control" placeholder="' + NC.__('collection_name_placeholder', 'Ex: Semana dos Museus 2026') + '">' +
+                    '<div style="margin-top:10px;"><label class="nc-form-label">' + NC.__('description', 'Descrição') + '</label>' +
+                    '<textarea id="nc-new-collection-desc" class="nc-form-control" rows="2"></textarea></div></div>' +
+            '</div>' +
+            '<div class="nc-modal-footer">' +
+                '<button class="nc-button nc-button-secondary" onclick="NC.closeModal(\'nc-add-collection-modal\')">' + NC.__('cancel', 'Cancelar') + '</button>' +
+                '<button class="nc-button nc-button-primary" onclick="NC.submitAddToCollection()">' +
+                    '<span class="dashicons dashicons-plus-alt2"></span> ' + NC.__('add', 'Adicionar') + '</button>' +
+            '</div></div></div>';
+    jQuery('body').append(html);
+    jQuery('#nc-collection-select').on('change', function() {
+        jQuery('#nc-new-collection-fields').toggle(jQuery(this).val() === 'new');
+    });
+};
+
+NC.loadCollectionDropdown = function() {
+    var $s = jQuery('#nc-collection-select');
+    $s.html('<option value="">' + NC.__('loading', 'Carregando...') + '</option>');
+    wp.apiFetch({path: ncData.apiUrl + '/collections?status=draft&per_page=100'}).then(function(data) {
+        $s.html('<option value="">' + NC.__('select_collection_option', '-- Selecione --') + '</option>');
+        if (data.collections) { data.collections.forEach(function(c) {
+            $s.append('<option value="' + c.id + '">' + NC.escapeHtml(c.name) + ' (' + c.items_count + ' itens)</option>');
+        }); }
+        $s.append('<option value="new">' + NC.__('create_new_collection', '+ Criar nova coleção') + '</option>');
+    }).catch(function() { $s.html('<option value="new">' + NC.__('create_new_collection', '+ Criar nova coleção') + '</option>'); });
+};
+
+NC.submitAddToCollection = function() {
+    var cid = jQuery('#nc-collection-select').val();
+    var ids = NC._selectedItemIds || [];
+    if (!cid) { NC.showNotice('warning', NC.__('select_a_collection', 'Selecione uma coleção')); return; }
+    if (cid === 'new') {
+        var name = jQuery('#nc-new-collection-name').val();
+        if (!name) { NC.showNotice('warning', NC.__('collection_name_required', 'Nome da coleção é obrigatório')); return; }
+        wp.apiFetch({ path: ncData.apiUrl + '/collections', method: 'POST',
+            data: { name: name, description: jQuery('#nc-new-collection-desc').val() || '' }
+        }).then(function(col) { NC.addItemsToExistingCollection(col.id, ids); })
+        .catch(function(e) { NC.showNotice('error', NC.__('create_collection_error', 'Erro ao criar coleção: ') + (e.message || '')); });
+    } else {
+        NC.addItemsToExistingCollection(parseInt(cid), ids);
+    }
+};
+
+NC.addItemsToExistingCollection = function(cid, ids) {
+    wp.apiFetch({ path: ncData.apiUrl + '/collections/' + cid + '/items', method: 'POST',
+        data: { item_ids: ids.map(function(i) { return parseInt(i); }) }
+    }).then(function(r) {
+        NC.showNotice('success', (r.added || 0) + ' ' + NC.__('items_added_to_collection', 'itens adicionados à coleção!'));
+        NC.closeModal('nc-add-collection-modal');
+    }).catch(function(e) { NC.showNotice('error', NC.__('add_to_collection_error', 'Erro ao adicionar: ') + (e.message || '')); });
 };
 </script>

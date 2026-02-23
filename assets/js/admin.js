@@ -2,10 +2,33 @@
     'use strict';
 
     window.NC = {
+        _viewMode: 'grid',
+        _currentCuratedTab: 0,
+        _bulkItems: [],
+
         init: function() {
+            this._viewMode = localStorage.getItem('nc_view_mode') || 'grid';
             this.initTabs();
             this.initModalClose();
             this.setupApiFetch();
+        },
+
+        // ========== i18n Helper ==========
+
+        __: function(key, fallback) {
+            if (typeof ncData !== 'undefined' && ncData.i18n && ncData.i18n[key]) {
+                return ncData.i18n[key];
+            }
+            return fallback || key;
+        },
+
+        // ========== Security Helper ==========
+
+        escapeHtml: function(str) {
+            if (!str) return '';
+            var div = document.createElement('div');
+            div.appendChild(document.createTextNode(str));
+            return div.innerHTML;
         },
 
         setupApiFetch: function() {
@@ -16,11 +39,11 @@
 
         initTabs: function() {
             $('.nc-tab').on('click', function() {
-                const tab = $(this).data('tab');
+                var tab = $(this).data('tab');
                 $('.nc-tab').removeClass('active');
                 $(this).addClass('active');
                 $('.nc-tab-content').hide();
-                $(`#${tab}`).show();
+                $('#' + tab).show();
             });
         },
 
@@ -33,7 +56,6 @@
             $(document).on('keydown', function(e) {
                 if (e.key === 'Escape') {
                     $('.nc-modal-overlay.active').removeClass('active');
-                    // Also close sidebar on mobile
                     $('.nc-container').removeClass('nc-sidebar-open');
                 }
             });
@@ -55,24 +77,33 @@
             $('#' + modalId).removeClass('active');
         },
 
+        // ========== View Mode ==========
+
+        setViewMode: function(mode) {
+            NC._viewMode = mode;
+            localStorage.setItem('nc_view_mode', mode);
+            $('#nc-view-toggle .nc-view-btn').removeClass('active');
+            $('#nc-view-toggle .nc-view-btn[data-view="' + mode + '"]').addClass('active');
+            if (typeof NC.loadItems === 'function') {
+                NC.loadItems(NC._currentCuratedTab);
+            }
+        },
+
         // ========== Notices ==========
 
         showNotice: function(type, message) {
-            const noticeClass = type === 'success' ? 'nc-notice-success' :
+            var noticeClass = type === 'success' ? 'nc-notice-success' :
                               type === 'error' ? 'nc-notice-error' :
                               type === 'warning' ? 'nc-notice-warning' : 'nc-notice-info';
-            const icon = type === 'success' ? 'yes-alt' :
+            var icon = type === 'success' ? 'yes-alt' :
                         type === 'error' ? 'dismiss' :
                         type === 'warning' ? 'warning' : 'info';
 
-            const $notice = $(`
-                <div class="nc-notice ${noticeClass}" style="position:fixed;top:50px;right:20px;z-index:999999;min-width:300px;animation:slideInRight 0.3s ease;">
-                    <span class="dashicons dashicons-${icon}"></span>
-                    <span>${message}</span>
-                </div>
-            `);
+            var $notice = $('<div class="nc-notice ' + noticeClass + '" style="position:fixed;top:50px;right:20px;z-index:999999;min-width:300px;animation:slideInRight 0.3s ease;"></div>');
+            $notice.append($('<span class="dashicons dashicons-' + icon + '"></span>'));
+            $notice.append($('<span></span>').text(message));
             $('body').append($notice);
-            setTimeout(() => {
+            setTimeout(function() {
                 $notice.fadeOut(300, function() { $(this).remove(); });
             }, 5000);
         },
@@ -80,45 +111,45 @@
         // ========== Sources ==========
 
         collectNow: function(sourceId) {
-            this.showNotice('info', 'Iniciando coleta...');
+            this.showNotice('info', NC.__('collecting', 'Iniciando coleta...'));
             wp.apiFetch({
-                path: `${ncData.apiUrl}/sources/${sourceId}/collect`,
+                path: ncData.apiUrl + '/sources/' + sourceId + '/collect',
                 method: 'POST'
-            }).then(response => {
-                this.showNotice('success', `${response.items_collected} itens coletados!`);
+            }).then(function(response) {
+                NC.showNotice('success', (response.items_collected || 0) + ' ' + NC.__('items_collected', 'itens coletados!'));
                 if (typeof NC.loadSources === 'function') {
-                    setTimeout(() => NC.loadSources(), 1000);
+                    setTimeout(function() { NC.loadSources(); }, 1000);
                 }
-            }).catch(error => {
-                this.showNotice('error', 'Erro na coleta: ' + (error.message || 'Erro desconhecido'));
+            }).catch(function(error) {
+                NC.showNotice('error', NC.__('collection_error', 'Erro na coleta: ') + (error.message || ''));
             });
         },
 
         collectAll: function() {
-            if (!confirm('Iniciar coleta de todas as fontes ativas?')) return;
-            this.showNotice('info', 'Coletando de todas as fontes...');
+            if (!confirm(NC.__('confirm_collect_all', 'Iniciar coleta de todas as fontes ativas?'))) return;
+            this.showNotice('info', NC.__('collecting_all', 'Coletando de todas as fontes...'));
 
-            wp.apiFetch({path: `${ncData.apiUrl}/sources`}).then(sources => {
-                const activeSources = sources.filter(s => s.status === 'active');
+            wp.apiFetch({path: ncData.apiUrl + '/sources'}).then(function(sources) {
+                var activeSources = sources.filter(function(s) { return s.status === 'active'; });
                 if (activeSources.length === 0) {
-                    this.showNotice('warning', 'Nenhuma fonte ativa encontrada');
+                    NC.showNotice('warning', NC.__('no_active_sources', 'Nenhuma fonte ativa encontrada'));
                     return;
                 }
-                const promises = activeSources.map(source => {
+                var promises = activeSources.map(function(source) {
                     return wp.apiFetch({
-                        path: `${ncData.apiUrl}/sources/${source.id}/collect`,
+                        path: ncData.apiUrl + '/sources/' + source.id + '/collect',
                         method: 'POST'
                     });
                 });
-                Promise.all(promises).then(results => {
-                    const total = results.reduce((sum, r) => sum + (r.items_collected || 0), 0);
-                    this.showNotice('success', `Total de ${total} itens coletados de ${activeSources.length} fontes!`);
-                    setTimeout(() => location.reload(), 2000);
-                }).catch(() => {
-                    this.showNotice('error', 'Erro ao coletar de algumas fontes');
+                Promise.all(promises).then(function(results) {
+                    var total = results.reduce(function(sum, r) { return sum + (r.items_collected || 0); }, 0);
+                    NC.showNotice('success', total + ' ' + NC.__('items_collected_from', 'itens coletados de ') + activeSources.length + ' ' + NC.__('sources', 'fontes!'));
+                    setTimeout(function() { location.reload(); }, 2000);
+                }).catch(function() {
+                    NC.showNotice('error', NC.__('collection_error_some', 'Erro ao coletar de algumas fontes'));
                 });
-            }).catch(error => {
-                this.showNotice('error', 'Erro ao carregar fontes: ' + (error.message || 'Erro desconhecido'));
+            }).catch(function(error) {
+                NC.showNotice('error', NC.__('sources_load_error', 'Erro ao carregar fontes: ') + (error.message || ''));
             });
         },
 
@@ -126,51 +157,58 @@
 
         curateItem: function(itemId) {
             wp.apiFetch({
-                path: `${ncData.apiUrl}/items/${itemId}/curate`,
+                path: ncData.apiUrl + '/items/' + itemId + '/curate',
                 method: 'POST'
-            }).then(() => {
-                this.showNotice('success', 'Item aprovado!');
-                $(`[data-item-id="${itemId}"]`).fadeOut(300, function() { $(this).remove(); });
-                const $counter = $('#nc-uncurated-count');
+            }).then(function() {
+                NC.showNotice('success', NC.__('item_approved', 'Item aprovado!'));
+                $('[data-item-id="' + itemId + '"]').fadeOut(300, function() { $(this).remove(); });
+                var $counter = $('#nc-uncurated-count');
                 if ($counter.length) {
-                    const current = parseInt($counter.text()) || 0;
+                    var current = parseInt($counter.text()) || 0;
                     $counter.text(Math.max(0, current - 1));
                 }
-                const $curatedCounter = $('#nc-curated-count');
+                var $curatedCounter = $('#nc-curated-count');
                 if ($curatedCounter.length) {
-                    const current = parseInt($curatedCounter.text()) || 0;
-                    $curatedCounter.text(current + 1);
+                    var current2 = parseInt($curatedCounter.text()) || 0;
+                    $curatedCounter.text(current2 + 1);
                 }
-            }).catch(error => {
-                this.showNotice('error', 'Erro ao aprovar: ' + error.message);
+            }).catch(function(error) {
+                NC.showNotice('error', NC.__('approve_error', 'Erro ao aprovar: ') + (error.message || ''));
             });
         },
 
         bulkCurate: function() {
-            const $checked = $('.nc-item-checkbox:checked');
+            var $checked = $('.nc-item-checkbox:checked');
             if ($checked.length === 0) {
-                this.showNotice('warning', 'Selecione ao menos um item');
+                this.showNotice('warning', NC.__('select_at_least_one', 'Selecione ao menos um item'));
                 return;
             }
-            if (!confirm(`Aprovar ${$checked.length} itens selecionados?`)) return;
+            if (!confirm(NC.__('confirm_approve', 'Aprovar') + ' ' + $checked.length + ' ' + NC.__('selected_items', 'itens selecionados?'))) return;
 
-            const itemIds = $checked.map(function() { return $(this).val(); }).get();
-            const promises = itemIds.map(id => {
+            var itemIds = $checked.map(function() { return $(this).val(); }).get();
+            var promises = itemIds.map(function(id) {
                 return wp.apiFetch({
-                    path: `${ncData.apiUrl}/items/${id}/curate`,
+                    path: ncData.apiUrl + '/items/' + id + '/curate',
                     method: 'POST'
                 });
             });
-            Promise.all(promises).then(() => {
-                this.showNotice('success', `${itemIds.length} itens aprovados!`);
-                setTimeout(() => location.reload(), 1500);
-            }).catch(() => {
-                this.showNotice('error', 'Erro ao aprovar itens');
+            Promise.all(promises).then(function() {
+                NC.showNotice('success', itemIds.length + ' ' + NC.__('items_approved', 'itens aprovados!'));
+                setTimeout(function() { location.reload(); }, 1500);
+            }).catch(function() {
+                NC.showNotice('error', NC.__('approve_items_error', 'Erro ao aprovar itens'));
             });
         },
 
         selectAll: function(checkbox) {
             $('.nc-item-checkbox').prop('checked', checkbox.checked);
+            var count = $('.nc-item-checkbox:checked').length;
+            if (count > 0) {
+                $('#nc-selected-count').show();
+                $('#nc-selected-num').text(count);
+            } else {
+                $('#nc-selected-count').hide();
+            }
         },
 
         // ========== Schedule Modal ==========
@@ -180,104 +218,97 @@
                 this.createScheduleModal();
             }
 
-            // Reset form
             $('#nc-schedule-form')[0].reset();
             $('#nc-schedule-item-select').prop('disabled', false);
             $('#nc-schedule-preview-text').text('');
             $('#nc-schedule-char-count').text('0');
 
-            // Default datetime: next hour
-            const now = new Date();
+            var now = new Date();
             now.setHours(now.getHours() + 1, 0, 0, 0);
-            const y = now.getFullYear();
-            const m = String(now.getMonth() + 1).padStart(2, '0');
-            const d = String(now.getDate()).padStart(2, '0');
-            const h = String(now.getHours()).padStart(2, '0');
-            $('#nc-schedule-datetime').val(`${y}-${m}-${d}T${h}:00`);
+            var y = now.getFullYear();
+            var m = String(now.getMonth() + 1).padStart(2, '0');
+            var d = String(now.getDate()).padStart(2, '0');
+            var h = String(now.getHours()).padStart(2, '0');
+            $('#nc-schedule-datetime').val(y + '-' + m + '-' + d + 'T' + h + ':00');
 
-            // Load approved items then select if itemId provided
             this.loadApprovedItems(itemId);
             this.openModal('nc-schedule-modal');
         },
 
         createScheduleModal: function() {
-            const modalHtml = `
-            <div id="nc-schedule-modal" class="nc-modal-overlay">
-                <div class="nc-modal" style="max-width:700px;">
-                    <div class="nc-modal-header">
-                        <h3 class="nc-modal-title">
-                            <span class="dashicons dashicons-calendar-alt" style="color:var(--nc-accent);"></span>
-                            Agendar Publicação
-                        </h3>
-                        <button class="nc-modal-close" onclick="NC.closeModal('nc-schedule-modal')">&times;</button>
-                    </div>
-                    <div class="nc-modal-body">
-                        <form id="nc-schedule-form">
-                            <div class="nc-form-group">
-                                <label class="nc-form-label">Item aprovado *</label>
-                                <select id="nc-schedule-item-select" class="nc-form-control" required>
-                                    <option value="">Carregando itens aprovados...</option>
-                                </select>
-                                <span class="nc-form-help">Selecione um item aprovado na curadoria</span>
-                            </div>
-
-                            <div class="nc-form-group">
-                                <label class="nc-form-label">Conteúdo do Post *</label>
-                                <textarea id="nc-schedule-content" class="nc-form-control" rows="6" required
-                                    placeholder="O conteúdo será preenchido automaticamente ao selecionar um item..."></textarea>
-                                <div class="nc-char-counter">
-                                    <span id="nc-schedule-char-count">0</span> / 500 caracteres
-                                </div>
-                                <span class="nc-form-help">Edite o texto que será publicado no Mastodon</span>
-                            </div>
-
-                            <div class="nc-schedule-row">
-                                <div class="nc-form-group" style="flex:1;">
-                                    <label class="nc-form-label">Data e Hora *</label>
-                                    <input type="datetime-local" id="nc-schedule-datetime" class="nc-form-control" required>
-                                </div>
-                                <div class="nc-form-group" style="flex:1;">
-                                    <label class="nc-form-label">Opções</label>
-                                    <label class="nc-schedule-option">
-                                        <input type="checkbox" id="nc-schedule-include-image" checked>
-                                        <span>Incluir imagem (se disponível)</span>
-                                    </label>
-                                </div>
-                            </div>
-
-                            <div class="nc-form-group">
-                                <label class="nc-form-label">Preview</label>
-                                <div class="nc-schedule-preview">
-                                    <div class="nc-schedule-preview-header">
-                                        <span class="dashicons dashicons-admin-site-alt3"></span>
-                                        <strong>Mastodon Post</strong>
-                                    </div>
-                                    <p id="nc-schedule-preview-text"></p>
-                                </div>
-                            </div>
-                        </form>
-                    </div>
-                    <div class="nc-modal-footer">
-                        <button class="nc-button nc-button-secondary" onclick="NC.closeModal('nc-schedule-modal')">
-                            Cancelar
-                        </button>
-                        <button class="nc-button nc-button-primary" onclick="NC.submitSchedule()">
-                            <span class="dashicons dashicons-calendar-alt"></span> Agendar Publicação
-                        </button>
-                    </div>
-                </div>
-            </div>`;
+            var modalHtml =
+            '<div id="nc-schedule-modal" class="nc-modal-overlay">' +
+                '<div class="nc-modal" style="max-width:700px;">' +
+                    '<div class="nc-modal-header">' +
+                        '<h3 class="nc-modal-title">' +
+                            '<span class="dashicons dashicons-calendar-alt" style="color:var(--nc-accent);"></span> ' +
+                            NC.__('schedule_publication', 'Agendar Publicação') +
+                        '</h3>' +
+                        '<button class="nc-modal-close" onclick="NC.closeModal(\'nc-schedule-modal\')">&times;</button>' +
+                    '</div>' +
+                    '<div class="nc-modal-body">' +
+                        '<form id="nc-schedule-form">' +
+                            '<div class="nc-form-group">' +
+                                '<label class="nc-form-label">' + NC.__('approved_item', 'Item aprovado') + ' *</label>' +
+                                '<select id="nc-schedule-item-select" class="nc-form-control" required>' +
+                                    '<option value="">' + NC.__('loading_approved', 'Carregando itens aprovados...') + '</option>' +
+                                '</select>' +
+                                '<span class="nc-form-help">' + NC.__('select_approved_item', 'Selecione um item aprovado na curadoria') + '</span>' +
+                            '</div>' +
+                            '<div class="nc-form-group">' +
+                                '<label class="nc-form-label">' + NC.__('post_content', 'Conteúdo do Post') + ' *</label>' +
+                                '<textarea id="nc-schedule-content" class="nc-form-control" rows="6" required' +
+                                    ' placeholder="' + NC.__('content_auto_fill', 'O conteúdo será preenchido automaticamente ao selecionar um item...') + '"></textarea>' +
+                                '<div class="nc-char-counter">' +
+                                    '<span id="nc-schedule-char-count">0</span> / 500 ' + NC.__('characters', 'caracteres') +
+                                '</div>' +
+                                '<span class="nc-form-help">' + NC.__('edit_mastodon_text', 'Edite o texto que será publicado no Mastodon') + '</span>' +
+                            '</div>' +
+                            '<div class="nc-schedule-row">' +
+                                '<div class="nc-form-group" style="flex:1;">' +
+                                    '<label class="nc-form-label">' + NC.__('datetime', 'Data e Hora') + ' *</label>' +
+                                    '<input type="datetime-local" id="nc-schedule-datetime" class="nc-form-control" required>' +
+                                '</div>' +
+                                '<div class="nc-form-group" style="flex:1;">' +
+                                    '<label class="nc-form-label">' + NC.__('options', 'Opções') + '</label>' +
+                                    '<label class="nc-schedule-option">' +
+                                        '<input type="checkbox" id="nc-schedule-include-image" checked>' +
+                                        '<span>' + NC.__('include_image', 'Incluir imagem (se disponível)') + '</span>' +
+                                    '</label>' +
+                                '</div>' +
+                            '</div>' +
+                            '<div class="nc-form-group">' +
+                                '<label class="nc-form-label">Preview</label>' +
+                                '<div class="nc-schedule-preview">' +
+                                    '<div class="nc-schedule-preview-header">' +
+                                        '<span class="dashicons dashicons-admin-site-alt3"></span>' +
+                                        '<strong>Mastodon Post</strong>' +
+                                    '</div>' +
+                                    '<p id="nc-schedule-preview-text"></p>' +
+                                '</div>' +
+                            '</div>' +
+                        '</form>' +
+                    '</div>' +
+                    '<div class="nc-modal-footer">' +
+                        '<button class="nc-button nc-button-secondary" onclick="NC.closeModal(\'nc-schedule-modal\')">' +
+                            NC.__('cancel', 'Cancelar') +
+                        '</button>' +
+                        '<button class="nc-button nc-button-primary" onclick="NC.submitSchedule()">' +
+                            '<span class="dashicons dashicons-calendar-alt"></span> ' + NC.__('schedule_publication', 'Agendar Publicação') +
+                        '</button>' +
+                    '</div>' +
+                '</div>' +
+            '</div>';
 
             $('body').append(modalHtml);
 
-            // Bind events
             $('#nc-schedule-content').on('input', function() {
                 NC.updateCharCounter();
                 NC.updateSchedulePreview();
             });
 
             $('#nc-schedule-item-select').on('change', function() {
-                const itemId = $(this).val();
+                var itemId = $(this).val();
                 if (itemId) {
                     NC.loadItemContent(itemId);
                 }
@@ -285,39 +316,38 @@
         },
 
         loadApprovedItems: function(selectedId) {
-            const $select = $('#nc-schedule-item-select');
-            $select.html('<option value="">Carregando...</option>');
+            var $select = $('#nc-schedule-item-select');
+            $select.html('<option value="">' + NC.__('loading', 'Carregando...') + '</option>');
 
-            wp.apiFetch({path: `${ncData.apiUrl}/items?curated=1&per_page=100`}).then(data => {
-                $select.html('<option value="">Selecione um item aprovado...</option>');
+            wp.apiFetch({path: ncData.apiUrl + '/items?curated=1&per_page=100'}).then(function(data) {
+                $select.html('<option value="">' + NC.__('select_approved', 'Selecione um item aprovado...') + '</option>');
 
                 if (data.items && data.items.length > 0) {
-                    data.items.forEach(item => {
-                        const selected = selectedId && item.id == selectedId ? 'selected' : '';
-                        const title = item.title.length > 60 ? item.title.substring(0, 60) + '...' : item.title;
+                    data.items.forEach(function(item) {
+                        var selected = selectedId && item.id == selectedId ? 'selected' : '';
+                        var title = item.title.length > 60 ? NC.escapeHtml(item.title.substring(0, 60)) + '...' : NC.escapeHtml(item.title);
                         $select.append(
-                            `<option value="${item.id}" ${selected}
-                                data-formatted="${encodeURIComponent(item.formatted_content || '')}"
-                                data-has-image="${item.has_image ? '1' : '0'}">${title}</option>`
+                            '<option value="' + item.id + '" ' + selected +
+                                ' data-formatted="' + encodeURIComponent(item.formatted_content || '') + '"' +
+                                ' data-has-image="' + (item.has_image ? '1' : '0') + '">' + title + '</option>'
                         );
                     });
 
-                    // Auto-fill if item was pre-selected
                     if (selectedId) {
                         NC.loadItemContent(selectedId);
                     }
                 } else {
-                    $select.html('<option value="">Nenhum item aprovado encontrado</option>');
+                    $select.html('<option value="">' + NC.__('no_approved_items', 'Nenhum item aprovado encontrado') + '</option>');
                 }
-            }).catch(() => {
-                $select.html('<option value="">Erro ao carregar itens</option>');
+            }).catch(function() {
+                $select.html('<option value="">' + NC.__('load_items_error', 'Erro ao carregar itens') + '</option>');
             });
         },
 
         loadItemContent: function(itemId) {
-            const $option = $(`#nc-schedule-item-select option[value="${itemId}"]`);
-            const formatted = decodeURIComponent($option.data('formatted') || '');
-            const hasImage = $option.data('has-image') === '1' || $option.data('has-image') === 1;
+            var $option = $('#nc-schedule-item-select option[value="' + itemId + '"]');
+            var formatted = decodeURIComponent($option.data('formatted') || '');
+            var hasImage = $option.data('has-image') === '1' || $option.data('has-image') === 1;
 
             if (formatted) {
                 $('#nc-schedule-content').val(formatted);
@@ -329,8 +359,8 @@
         },
 
         updateCharCounter: function() {
-            const len = ($('#nc-schedule-content').val() || '').length;
-            const $counter = $('#nc-schedule-char-count');
+            var len = ($('#nc-schedule-content').val() || '').length;
+            var $counter = $('#nc-schedule-char-count');
             $counter.text(len);
             if (len > 500) {
                 $counter.parent().addClass('nc-char-over');
@@ -340,41 +370,41 @@
         },
 
         updateSchedulePreview: function() {
-            const content = $('#nc-schedule-content').val() || '';
+            var content = $('#nc-schedule-content').val() || '';
             $('#nc-schedule-preview-text').text(content);
         },
 
         submitSchedule: function() {
-            const form = $('#nc-schedule-form')[0];
+            var form = $('#nc-schedule-form')[0];
             if (!form.checkValidity()) {
                 form.reportValidity();
                 return;
             }
 
-            const content = $('#nc-schedule-content').val();
+            var content = $('#nc-schedule-content').val();
             if (content.length > 500) {
-                this.showNotice('warning', 'O conteúdo excede 500 caracteres. Reduza o texto antes de agendar.');
+                this.showNotice('warning', NC.__('content_too_long', 'O conteúdo excede 500 caracteres. Reduza o texto antes de agendar.'));
                 return;
             }
 
-            const data = {
+            var data = {
                 item_id: parseInt($('#nc-schedule-item-select').val()),
                 scheduled_for: $('#nc-schedule-datetime').val(),
                 content: content
             };
 
             wp.apiFetch({
-                path: `${ncData.apiUrl}/publications`,
+                path: ncData.apiUrl + '/publications',
                 method: 'POST',
                 data: data
-            }).then(() => {
-                this.showNotice('success', 'Publicação agendada com sucesso!');
-                this.closeModal('nc-schedule-modal');
+            }).then(function() {
+                NC.showNotice('success', NC.__('publication_scheduled', 'Publicação agendada com sucesso!'));
+                NC.closeModal('nc-schedule-modal');
                 if (typeof NC.loadPublications === 'function') {
-                    setTimeout(() => NC.loadPublications('scheduled'), 1000);
+                    setTimeout(function() { NC.loadPublications('scheduled'); }, 1000);
                 }
-            }).catch(error => {
-                this.showNotice('error', 'Erro ao agendar: ' + (error.message || 'Erro desconhecido'));
+            }).catch(function(error) {
+                NC.showNotice('error', NC.__('schedule_error', 'Erro ao agendar: ') + (error.message || ''));
             });
         },
 
@@ -383,7 +413,7 @@
         openBulkScheduleModal: function() {
             var $checked = $('.nc-item-checkbox:checked');
             if ($checked.length === 0) {
-                this.showNotice('warning', 'Selecione ao menos um item para agendar');
+                this.showNotice('warning', NC.__('select_at_least_one_schedule', 'Selecione ao menos um item para agendar'));
                 return;
             }
 
@@ -391,23 +421,22 @@
                 this.createBulkScheduleModal();
             }
 
-            // Collect selected items info
             var selectedItems = [];
             $checked.each(function() {
-                var $card = $(this).closest('.nc-item-card');
+                var $parent = $(this).closest('.nc-item-card, tr');
+                var title = $parent.find('.nc-item-title').first().text() || $parent.find('td:nth-child(3) strong').first().text();
                 selectedItems.push({
                     id: $(this).val(),
-                    title: $card.find('.nc-item-title').text(),
+                    title: title || NC.__('untitled', 'Sem título'),
                     formatted: decodeURIComponent($(this).data('formatted') || '')
                 });
             });
             NC._bulkItems = selectedItems;
 
-            // Update summary
             $('#nc-bulk-count').text(selectedItems.length);
             var listHtml = '';
             selectedItems.forEach(function(item, i) {
-                var title = item.title.length > 50 ? item.title.substring(0, 50) + '...' : item.title;
+                var title = item.title.length > 50 ? NC.escapeHtml(item.title.substring(0, 50)) + '...' : NC.escapeHtml(item.title);
                 listHtml += '<div class="nc-bulk-item">' +
                     '<span class="nc-bulk-item-num">' + (i + 1) + '</span>' +
                     '<span>' + title + '</span>' +
@@ -415,7 +444,6 @@
             });
             $('#nc-bulk-items-list').html(listHtml);
 
-            // Default: next hour
             var now = new Date();
             now.setHours(now.getHours() + 1, 0, 0, 0);
             var y = now.getFullYear();
@@ -436,57 +464,53 @@
                     '<div class="nc-modal-header">' +
                         '<h3 class="nc-modal-title">' +
                             '<span class="dashicons dashicons-calendar-alt" style="color:var(--nc-accent);"></span> ' +
-                            'Agendar em Lote' +
+                            NC.__('bulk_schedule', 'Agendar em Lote') +
                         '</h3>' +
                         '<button class="nc-modal-close" onclick="NC.closeModal(\'nc-bulk-schedule-modal\')">&times;</button>' +
                     '</div>' +
                     '<div class="nc-modal-body">' +
                         '<div class="nc-notice nc-notice-info" style="margin-bottom:20px;">' +
                             '<span class="dashicons dashicons-info"></span>' +
-                            '<span><strong id="nc-bulk-count">0</strong> itens selecionados serão agendados automaticamente com o template configurado.</span>' +
+                            '<span><strong id="nc-bulk-count">0</strong> ' + NC.__('items_will_be_scheduled', 'itens selecionados serão agendados automaticamente com o template configurado.') + '</span>' +
                         '</div>' +
-
                         '<div class="nc-bulk-items-summary" id="nc-bulk-items-list"></div>' +
-
                         '<div class="nc-schedule-row" style="margin-top:20px;">' +
                             '<div class="nc-form-group" style="flex:1;">' +
-                                '<label class="nc-form-label">Primeira publicação *</label>' +
+                                '<label class="nc-form-label">' + NC.__('first_publication', 'Primeira publicação') + ' *</label>' +
                                 '<input type="datetime-local" id="nc-bulk-start-datetime" class="nc-form-control" required>' +
-                                '<span class="nc-form-help">Data/hora da primeira publicação</span>' +
+                                '<span class="nc-form-help">' + NC.__('first_pub_help', 'Data/hora da primeira publicação') + '</span>' +
                             '</div>' +
                             '<div class="nc-form-group" style="flex:1;">' +
-                                '<label class="nc-form-label">Intervalo entre posts *</label>' +
+                                '<label class="nc-form-label">' + NC.__('interval_between', 'Intervalo entre posts') + ' *</label>' +
                                 '<select id="nc-bulk-interval" class="nc-form-control">' +
-                                    '<option value="30">A cada 30 minutos</option>' +
-                                    '<option value="60" selected>A cada 1 hora</option>' +
-                                    '<option value="120">A cada 2 horas</option>' +
-                                    '<option value="360">A cada 6 horas</option>' +
-                                    '<option value="720">A cada 12 horas</option>' +
-                                    '<option value="1440">A cada 24 horas</option>' +
+                                    '<option value="30">' + NC.__('every_30min', 'A cada 30 minutos') + '</option>' +
+                                    '<option value="60" selected>' + NC.__('every_1h', 'A cada 1 hora') + '</option>' +
+                                    '<option value="120">' + NC.__('every_2h', 'A cada 2 horas') + '</option>' +
+                                    '<option value="360">' + NC.__('every_6h', 'A cada 6 horas') + '</option>' +
+                                    '<option value="720">' + NC.__('every_12h', 'A cada 12 horas') + '</option>' +
+                                    '<option value="1440">' + NC.__('every_24h', 'A cada 24 horas') + '</option>' +
                                 '</select>' +
-                                '<span class="nc-form-help">Tempo entre cada publicação</span>' +
+                                '<span class="nc-form-help">' + NC.__('interval_help', 'Tempo entre cada publicação') + '</span>' +
                             '</div>' +
                         '</div>' +
-
                         '<div class="nc-form-group">' +
-                            '<label class="nc-form-label">Opções</label>' +
+                            '<label class="nc-form-label">' + NC.__('options', 'Opções') + '</label>' +
                             '<label class="nc-schedule-option">' +
                                 '<input type="checkbox" id="nc-bulk-include-image" checked>' +
-                                '<span>Incluir imagens (quando disponíveis)</span>' +
+                                '<span>' + NC.__('include_images', 'Incluir imagens (quando disponíveis)') + '</span>' +
                             '</label>' +
                         '</div>' +
-
                         '<div class="nc-form-group">' +
-                            '<label class="nc-form-label">Cronograma previsto</label>' +
+                            '<label class="nc-form-label">' + NC.__('expected_timeline', 'Cronograma previsto') + '</label>' +
                             '<div class="nc-bulk-timeline" id="nc-bulk-timeline"></div>' +
                         '</div>' +
                     '</div>' +
                     '<div class="nc-modal-footer">' +
                         '<button class="nc-button nc-button-secondary" onclick="NC.closeModal(\'nc-bulk-schedule-modal\')">' +
-                            'Cancelar' +
+                            NC.__('cancel', 'Cancelar') +
                         '</button>' +
                         '<button class="nc-button nc-button-primary" onclick="NC.submitBulkSchedule()">' +
-                            '<span class="dashicons dashicons-calendar-alt"></span> Agendar Todos' +
+                            '<span class="dashicons dashicons-calendar-alt"></span> ' + NC.__('schedule_all', 'Agendar Todos') +
                         '</button>' +
                     '</div>' +
                 '</div>' +
@@ -505,7 +529,7 @@
             var interval = parseInt($('#nc-bulk-interval').val()) || 60;
 
             if (!startStr || items.length === 0) {
-                $('#nc-bulk-timeline').html('<p style="color:var(--nc-text-light);">Configure a data e o intervalo</p>');
+                $('#nc-bulk-timeline').html('<p style="color:var(--nc-text-light);">' + NC.__('configure_date_interval', 'Configure a data e o intervalo') + '</p>');
                 return;
             }
 
@@ -517,7 +541,7 @@
                     day: '2-digit', month: '2-digit', year: 'numeric',
                     hour: '2-digit', minute: '2-digit'
                 });
-                var title = item.title.length > 40 ? item.title.substring(0, 40) + '...' : item.title;
+                var title = item.title.length > 40 ? NC.escapeHtml(item.title.substring(0, 40)) + '...' : NC.escapeHtml(item.title);
                 html += '<div class="nc-timeline-item">' +
                     '<span class="nc-timeline-date">' + dateStr + '</span>' +
                     '<span class="nc-timeline-title">' + title + '</span>' +
@@ -527,8 +551,8 @@
             var lastDate = new Date(start.getTime() + ((items.length - 1) * interval * 60 * 1000));
             html += '<div class="nc-timeline-summary">' +
                 '<span class="dashicons dashicons-clock"></span> ' +
-                'De ' + start.toLocaleString('pt-BR', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) +
-                ' até ' + lastDate.toLocaleString('pt-BR', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) +
+                NC.__('from', 'De') + ' ' + start.toLocaleString('pt-BR', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) +
+                ' ' + NC.__('until', 'até') + ' ' + lastDate.toLocaleString('pt-BR', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) +
                 '</div>';
 
             $('#nc-bulk-timeline').html(html);
@@ -540,21 +564,20 @@
             var interval = parseInt($('#nc-bulk-interval').val()) || 60;
 
             if (!startStr || items.length === 0) {
-                this.showNotice('warning', 'Configure a data da primeira publicação');
+                this.showNotice('warning', NC.__('configure_first_date', 'Configure a data da primeira publicação'));
                 return;
             }
 
             var start = new Date(startStr);
             if (start <= new Date()) {
-                this.showNotice('warning', 'A data da primeira publicação deve ser no futuro');
+                this.showNotice('warning', NC.__('date_must_be_future', 'A data da primeira publicação deve ser no futuro'));
                 return;
             }
 
-            this.showNotice('info', 'Agendando ' + items.length + ' publicações...');
+            this.showNotice('info', NC.__('scheduling', 'Agendando') + ' ' + items.length + ' ' + NC.__('publications', 'publicações...'));
 
             var promises = items.map(function(item, i) {
                 var pubDate = new Date(start.getTime() + (i * interval * 60 * 1000));
-                // Format as ISO for the API
                 var scheduled = pubDate.getFullYear() + '-' +
                     String(pubDate.getMonth() + 1).padStart(2, '0') + '-' +
                     String(pubDate.getDate()).padStart(2, '0') + 'T' +
@@ -573,74 +596,69 @@
             });
 
             Promise.all(promises).then(function() {
-                NC.showNotice('success', items.length + ' publicações agendadas com sucesso!');
+                NC.showNotice('success', items.length + ' ' + NC.__('publications_scheduled', 'publicações agendadas com sucesso!'));
                 NC.closeModal('nc-bulk-schedule-modal');
                 if (typeof NC.loadPublications === 'function') {
                     setTimeout(function() { NC.loadPublications('scheduled'); }, 1000);
                 }
-                // Reload items to refresh the list
                 if (typeof NC.loadItems === 'function') {
                     setTimeout(function() { NC.loadItems(NC._currentCuratedTab); }, 1500);
                 }
             }).catch(function(error) {
-                NC.showNotice('error', 'Erro ao agendar: ' + (error.message || 'Erro desconhecido'));
+                NC.showNotice('error', NC.__('schedule_error', 'Erro ao agendar: ') + (error.message || ''));
             });
         },
 
         // ========== Publications ==========
 
         deletePublication: function(id) {
-            if (!confirm('Cancelar esta publicação agendada?')) return;
+            if (!confirm(NC.__('confirm_cancel_pub', 'Cancelar esta publicação agendada?'))) return;
 
             wp.apiFetch({
-                path: `${ncData.apiUrl}/publications/${id}`,
+                path: ncData.apiUrl + '/publications/' + id,
                 method: 'DELETE'
-            }).then(() => {
-                this.showNotice('success', 'Publicação cancelada!');
+            }).then(function() {
+                NC.showNotice('success', NC.__('publication_cancelled', 'Publicação cancelada!'));
                 if (typeof NC.loadPublications === 'function') {
                     NC.loadPublications('scheduled');
                 }
-            }).catch(error => {
-                this.showNotice('error', 'Erro ao cancelar: ' + error.message);
+            }).catch(function(error) {
+                NC.showNotice('error', NC.__('cancel_error', 'Erro ao cancelar: ') + (error.message || ''));
             });
         },
 
         retryPublication: function(id) {
-            if (!confirm('Reagendar esta publicação?')) return;
-            this.showNotice('info', 'Reagendando publicação...');
-
-            // Re-schedule by creating a new publication based on the failed one
-            // For now, just notify - the retry system handles this via cron
-            this.showNotice('info', 'A publicação será reprocessada automaticamente na próxima execução do cron.');
+            if (!confirm(NC.__('confirm_reschedule', 'Reagendar esta publicação?'))) return;
+            this.showNotice('info', NC.__('retry_info', 'A publicação será reprocessada automaticamente na próxima execução do cron.'));
         },
 
         // ========== Settings ==========
 
         testMastodon: function() {
-            this.showNotice('info', 'Testando conexão...');
+            this.showNotice('info', NC.__('testing_connection', 'Testando conexão...'));
 
             wp.apiFetch({
-                path: `${ncData.apiUrl}/settings/test-mastodon`,
+                path: ncData.apiUrl + '/settings/test-mastodon',
                 method: 'POST'
-            }).then(result => {
+            }).then(function(result) {
                 if (result.success) {
-                    this.showNotice('success', `Conectado como ${result.account.username}!`);
-                    $('#nc-mastodon-status').html(`
-                        <div class="nc-notice nc-notice-success">
-                            <span class="dashicons dashicons-yes-alt"></span>
-                            <span>Conectado como <strong>@${result.account.username}</strong></span>
-                        </div>
-                    `);
+                    NC.showNotice('success', NC.__('connected_as', 'Conectado como') + ' ' + result.account.username + '!');
+                    $('#nc-mastodon-status').html(
+                        '<div class="nc-notice nc-notice-success">' +
+                            '<span class="dashicons dashicons-yes-alt"></span>' +
+                            '<span>' + NC.__('connected_as', 'Conectado como') + ' <strong>@' + NC.escapeHtml(result.account.username) + '</strong></span>' +
+                        '</div>'
+                    );
                 } else {
-                    this.showNotice('error', 'Falha na conexão: ' + result.message);
+                    NC.showNotice('error', NC.__('connection_failed', 'Falha na conexão: ') + (result.message || ''));
                 }
-            }).catch(error => {
-                this.showNotice('error', 'Erro ao testar: ' + error.message);
+            }).catch(function(error) {
+                NC.showNotice('error', NC.__('test_error', 'Erro ao testar: ') + (error.message || ''));
             });
         },
 
         saveSettings: function() {
-            const data = {
+            var data = {
                 mastodon_instance: $('#nc-setting-instance').val(),
                 mastodon_token: $('#nc-setting-token').val(),
                 post_template: $('#nc-setting-template').val(),
@@ -648,22 +666,22 @@
             };
 
             wp.apiFetch({
-                path: `${ncData.apiUrl}/settings`,
+                path: ncData.apiUrl + '/settings',
                 method: 'POST',
                 data: data
-            }).then(() => {
-                this.showNotice('success', 'Configurações salvas!');
-            }).catch(error => {
-                this.showNotice('error', 'Erro ao salvar: ' + error.message);
+            }).then(function() {
+                NC.showNotice('success', NC.__('settings_saved', 'Configurações salvas!'));
+            }).catch(function(error) {
+                NC.showNotice('error', NC.__('save_error', 'Erro ao salvar: ') + (error.message || ''));
             });
         },
 
         // ========== Template Preview ==========
 
         updateTemplatePreview: function() {
-            const template = $('#nc-setting-template').val() || '';
-            const hashtags = $('#nc-setting-hashtags').val() || '';
-            const preview = template
+            var template = $('#nc-setting-template').val() || '';
+            var hashtags = $('#nc-setting-hashtags').val() || '';
+            var preview = template
                 .replace('{title}', 'Museu Nacional reabre exposição permanente')
                 .replace('{excerpt}', 'O Museu Nacional do Rio de Janeiro anuncia a reabertura da exposição permanente com novas peças restauradas...')
                 .replace('{url}', 'https://www.gov.br/museus/pt-br/exemplo')
@@ -671,7 +689,7 @@
 
             $('#nc-template-preview-text').text(preview);
 
-            const len = preview.length;
+            var len = preview.length;
             $('#nc-template-preview-count').text(len);
             if (len > 500) {
                 $('#nc-template-preview-count').parent().addClass('nc-char-over');
@@ -682,7 +700,7 @@
     };
 
     // Initialize
-    $(document).ready(() => NC.init());
+    $(document).ready(function() { NC.init(); });
 
     // Slide-in animation
     $('<style>')

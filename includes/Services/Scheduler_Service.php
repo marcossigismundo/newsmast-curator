@@ -3,6 +3,7 @@ namespace NewsmastCurator\Services;
 
 use NewsmastCurator\Core\Database;
 use NewsmastCurator\Repositories\Publication_Repository;
+use NewsmastCurator\Repositories\Collection_Repository;
 
 class Scheduler_Service {
     private $database;
@@ -27,6 +28,12 @@ class Scheduler_Service {
 
             foreach ($publications as $pub) {
                 $this->process_publication($pub);
+            }
+
+            // Refresh collection statuses based on publication results
+            if (!empty($publications)) {
+                $collection_repo = new Collection_Repository($this->database);
+                $collection_repo->refresh_statuses();
             }
         } finally {
             $this->release_lock();

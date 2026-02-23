@@ -1,0 +1,1139 @@
+# Translation of Newsmast Curator plugin into English (US).
+# Copyright (C) 2026 Newsmast Curator
+# This file is distributed under the same license as the Newsmast Curator plugin.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Newsmast Curator 1.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-02-23 00:00+0000\n"
+"PO-Revision-Date: 2026-02-23 00:00+0000\n"
+"Last-Translator: \n"
+"Language-Team: English (United States)\n"
+"Language: en_US\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"X-Generator: Claude Code\n"
+"X-Domain: newsmast-curator\n"
+
+#: includes/class-mastodon-api.php
+msgid "Mastodon não configurado"
+msgstr "Mastodon not configured"
+
+#: includes/class-mastodon-api.php
+msgid "Erro ao fazer upload: %d"
+msgstr "Upload error: %d"
+
+#: includes/class-mastodon-api.php
+msgid "Erro API Mastodon: %d"
+msgstr "Mastodon API error: %d"
+
+#: includes/connectors/class-plone-connector.php
+msgid "Plone CMS"
+msgstr "Plone CMS"
+
+#: includes/connectors/class-plone-connector.php
+msgid "Coleta notícias de sites Plone via scraping"
+msgstr "Collects news from Plone sites via scraping"
+
+#: includes/connectors/class-wordpress-connector.php
+msgid "WordPress"
+msgstr "WordPress"
+
+#: includes/connectors/class-wordpress-connector.php
+msgid "Coleta posts via REST API do WordPress"
+msgstr "Collects posts via WordPress REST API"
+
+#: includes/connectors/class-tainacan-connector.php
+msgid "Tainacan"
+msgstr "Tainacan"
+
+#: includes/connectors/class-tainacan-connector.php
+msgid "Coleta itens do plugin Tainacan"
+msgstr "Collects items from the Tainacan plugin"
+
+#: includes/connectors/class-connector-base.php
+msgid "URL é obrigatória"
+msgstr "URL is required"
+
+#: includes/connectors/class-plone-connector.php
+msgid "CSS Selector dos Itens"
+msgstr "Items CSS Selector"
+
+#: includes/connectors/class-connector-base.php
+msgid "%d itens encontrados"
+msgstr "%d items found"
+
+#: includes/connectors/class-tainacan-connector.php
+msgid "Coleção não encontrada"
+msgstr "Collection not found"
+
+#: includes/class-collections.php
+msgid "Nome é obrigatório"
+msgstr "Name is required"
+
+#: includes/class-collections.php
+msgid "Validação falhou"
+msgstr "Validation failed"
+
+#: includes/class-collections.php
+msgid "Falha ao criar coleção"
+msgstr "Failed to create collection"
+
+#: includes/class-collections.php
+msgid "Nenhum item fornecido"
+msgstr "No items provided"
+
+#: includes/class-collections.php
+msgid "Lista de itens inválida"
+msgstr "Invalid item list"
+
+#: includes/class-scheduler.php
+msgid "Data de agendamento é obrigatória"
+msgstr "Schedule date is required"
+
+#: includes/class-scheduler.php
+msgid "Data de agendamento deve ser no futuro"
+msgstr "Schedule date must be in the future"
+
+#: includes/class-scheduler.php
+msgid "Intervalo deve ser pelo menos 1 minuto"
+msgstr "Interval must be at least 1 minute"
+
+#: includes/class-scheduler.php
+msgid "Coleção não possui itens"
+msgstr "Collection has no items"
+
+#: newsmast-curator.php
+msgid "Newsmast Curator"
+msgstr "Newsmast Curator"
+
+#: newsmast-curator.php
+msgid "Newsmast"
+msgstr "Newsmast"
+
+#: admin/views/admin-page.php
+msgid "Fontes"
+msgstr "Sources"
+
+#: admin/views/admin-page.php
+msgid "Curadoria"
+msgstr "Curation"
+
+#: admin/views/admin-page.php
+msgid "Fila"
+msgstr "Queue"
+
+#: admin/views/admin-page.php
+msgid "Configurações"
+msgstr "Settings"
+
+#: admin/views/admin-page.php
+msgid "Coleções"
+msgstr "Collections"
+
+#: admin/views/admin-page.php
+msgid "Sistema"
+msgstr "System"
+
+#: admin/js/admin.js
+msgid "Carregando..."
+msgstr "Loading..."
+
+#: admin/js/admin.js
+msgid "Cancelar"
+msgstr "Cancel"
+
+#: admin/js/admin.js
+msgid "Adicionar"
+msgstr "Add"
+
+#: admin/js/admin.js
+msgid "Selecionar"
+msgstr "Select"
+
+#: admin/js/admin.js
+msgid "Opções"
+msgstr "Options"
+
+#: admin/js/admin.js
+msgid "caracteres"
+msgstr "characters"
+
+#: admin/js/admin.js
+msgid "Data e Hora"
+msgstr "Date and Time"
+
+#: admin/js/admin.js
+msgid "De"
+msgstr "From"
+
+#: admin/js/admin.js
+msgid "até"
+msgstr "until"
+
+#: admin/js/admin.js
+msgid "itens"
+msgstr "items"
+
+#: admin/js/admin.js
+msgid "Sem título"
+msgstr "Untitled"
+
+#: admin/js/admin.js
+msgid "Imagem"
+msgstr "Image"
+
+#: admin/js/admin.js
+msgid "Título"
+msgstr "Title"
+
+#: admin/js/admin.js
+msgid "Fonte"
+msgstr "Source"
+
+#: admin/js/admin.js
+msgid "Data"
+msgstr "Date"
+
+#: admin/js/admin.js
+msgid "Ações"
+msgstr "Actions"
+
+#: admin/js/admin.js
+msgid "Descrição"
+msgstr "Description"
+
+#: admin/js/sources.js
+msgid "Iniciando coleta..."
+msgstr "Starting collection..."
+
+#: admin/js/sources.js
+msgid "itens coletados!"
+msgstr "items collected!"
+
+#: admin/js/sources.js
+msgid "Erro na coleta: "
+msgstr "Collection error: "
+
+#: admin/js/sources.js
+msgid "Iniciar coleta de todas as fontes ativas?"
+msgstr "Start collecting from all active sources?"
+
+#: admin/js/sources.js
+msgid "Coletando de todas as fontes..."
+msgstr "Collecting from all sources..."
+
+#: admin/js/sources.js
+msgid "Nenhuma fonte ativa encontrada"
+msgstr "No active sources found"
+
+#: admin/js/sources.js
+msgid "itens coletados de "
+msgstr "items collected from "
+
+#: admin/js/sources.js
+msgid "fontes!"
+msgstr "sources!"
+
+#: admin/js/sources.js
+msgid "Erro ao coletar de algumas fontes"
+msgstr "Error collecting from some sources"
+
+#: admin/js/sources.js
+msgid "Erro ao carregar fontes: "
+msgstr "Error loading sources: "
+
+#: admin/js/curation.js
+msgid "Item aprovado!"
+msgstr "Item approved!"
+
+#: admin/js/curation.js
+msgid "Erro ao aprovar: "
+msgstr "Error approving: "
+
+#: admin/js/curation.js
+msgid "Selecione ao menos um item"
+msgstr "Select at least one item"
+
+#: admin/js/curation.js
+msgid "Aprovar"
+msgstr "Approve"
+
+#: admin/js/curation.js
+msgid "itens selecionados?"
+msgstr "selected items?"
+
+#: admin/js/curation.js
+msgid "itens aprovados!"
+msgstr "items approved!"
+
+#: admin/js/curation.js
+msgid "Erro ao aprovar itens"
+msgstr "Error approving items"
+
+#: admin/js/curation.js
+msgid "Agendar"
+msgstr "Schedule"
+
+#: admin/js/curation.js
+msgid "Ver Original"
+msgstr "View Original"
+
+#: admin/js/curation.js
+msgid "Nenhum item novo para curadoria. Execute uma coleta para trazer novos itens."
+msgstr "No new items for curation. Run a collection to fetch new items."
+
+#: admin/js/curation.js
+msgid "Nenhum item aprovado ainda. Aprove itens na aba \"Novos\"."
+msgstr "No approved items yet. Approve items in the \"New\" tab."
+
+#: admin/js/curation.js
+msgid "Erro ao carregar itens"
+msgstr "Error loading items"
+
+#: admin/js/queue.js
+msgid "Agendar Publicação"
+msgstr "Schedule Publication"
+
+#: admin/js/queue.js
+msgid "Item aprovado"
+msgstr "Approved item"
+
+#: admin/js/queue.js
+msgid "Carregando itens aprovados..."
+msgstr "Loading approved items..."
+
+#: admin/js/queue.js
+msgid "Selecione um item aprovado na curadoria"
+msgstr "Select an approved item from curation"
+
+#: admin/js/queue.js
+msgid "Selecione um item aprovado..."
+msgstr "Select an approved item..."
+
+#: admin/js/queue.js
+msgid "Nenhum item aprovado encontrado"
+msgstr "No approved items found"
+
+#: admin/js/queue.js
+msgid "Conteúdo do Post"
+msgstr "Post Content"
+
+#: admin/js/queue.js
+msgid "O conteúdo será preenchido automaticamente ao selecionar um item..."
+msgstr "Content will be filled automatically when selecting an item..."
+
+#: admin/js/queue.js
+msgid "Edite o texto que será publicado no Mastodon"
+msgstr "Edit the text that will be published on Mastodon"
+
+#: admin/js/queue.js
+msgid "Incluir imagem (se disponível)"
+msgstr "Include image (if available)"
+
+#: admin/js/queue.js
+msgid "Incluir imagens (quando disponíveis)"
+msgstr "Include images (when available)"
+
+#: admin/js/queue.js
+msgid "O conteúdo excede 500 caracteres. Reduza o texto antes de agendar."
+msgstr "Content exceeds 500 characters. Reduce the text before scheduling."
+
+#: admin/js/queue.js
+msgid "Publicação agendada com sucesso!"
+msgstr "Publication scheduled successfully!"
+
+#: admin/js/queue.js
+msgid "Erro ao agendar: "
+msgstr "Scheduling error: "
+
+#: admin/js/queue.js
+msgid "Selecione ao menos um item para agendar"
+msgstr "Select at least one item to schedule"
+
+#: admin/js/queue.js
+msgid "Agendar em Lote"
+msgstr "Bulk Schedule"
+
+#: admin/js/queue.js
+msgid "itens selecionados serão agendados automaticamente com o template configurado."
+msgstr "selected items will be automatically scheduled with the configured template."
+
+#: admin/js/queue.js
+msgid "Primeira publicação"
+msgstr "First publication"
+
+#: admin/js/queue.js
+msgid "Data/hora da primeira publicação"
+msgstr "Date/time of the first publication"
+
+#: admin/js/queue.js
+msgid "Intervalo entre posts"
+msgstr "Interval between posts"
+
+#: admin/js/queue.js
+msgid "Tempo entre cada publicação"
+msgstr "Time between each publication"
+
+#: admin/js/queue.js
+msgid "A cada 30 minutos"
+msgstr "Every 30 minutes"
+
+#: admin/js/queue.js
+msgid "A cada 1 hora"
+msgstr "Every 1 hour"
+
+#: admin/js/queue.js
+msgid "A cada 2 horas"
+msgstr "Every 2 hours"
+
+#: admin/js/queue.js
+msgid "A cada 6 horas"
+msgstr "Every 6 hours"
+
+#: admin/js/queue.js
+msgid "A cada 12 horas"
+msgstr "Every 12 hours"
+
+#: admin/js/queue.js
+msgid "A cada 24 horas"
+msgstr "Every 24 hours"
+
+#: admin/js/queue.js
+msgid "Cronograma previsto"
+msgstr "Expected timeline"
+
+#: admin/js/queue.js
+msgid "Configure a data e o intervalo"
+msgstr "Configure date and interval"
+
+#: admin/js/queue.js
+msgid "Agendar Todos"
+msgstr "Schedule All"
+
+#: admin/js/queue.js
+msgid "Configure a data da primeira publicação"
+msgstr "Configure the first publication date"
+
+#: admin/js/queue.js
+msgid "A data da primeira publicação deve ser no futuro"
+msgstr "The first publication date must be in the future"
+
+#: admin/js/queue.js
+msgid "Agendando"
+msgstr "Scheduling"
+
+#: admin/js/queue.js
+msgid "publicações..."
+msgstr "publications..."
+
+#: admin/js/queue.js
+msgid "publicações agendadas com sucesso!"
+msgstr "publications scheduled successfully!"
+
+#: admin/js/queue.js
+msgid "Cancelar esta publicação agendada?"
+msgstr "Cancel this scheduled publication?"
+
+#: admin/js/queue.js
+msgid "Publicação cancelada!"
+msgstr "Publication cancelled!"
+
+#: admin/js/queue.js
+msgid "Erro ao cancelar: "
+msgstr "Error cancelling: "
+
+#: admin/js/queue.js
+msgid "Reagendar esta publicação?"
+msgstr "Reschedule this publication?"
+
+#: admin/js/queue.js
+msgid "A publicação será reprocessada automaticamente na próxima execução do cron."
+msgstr "The publication will be automatically reprocessed in the next cron execution."
+
+#: admin/js/settings.js
+msgid "Testando conexão..."
+msgstr "Testing connection..."
+
+#: admin/js/settings.js
+msgid "Conectado como"
+msgstr "Connected as"
+
+#: admin/js/settings.js
+msgid "Falha na conexão: "
+msgstr "Connection failed: "
+
+#: admin/js/settings.js
+msgid "Erro ao testar: "
+msgstr "Test error: "
+
+#: admin/js/settings.js
+msgid "Configurações salvas!"
+msgstr "Settings saved!"
+
+#: admin/js/settings.js
+msgid "Erro ao salvar: "
+msgstr "Error saving: "
+
+#: admin/js/curation.js
+msgid "Adicionar à Coleção"
+msgstr "Add to Collection"
+
+#: admin/js/curation.js
+msgid "itens selecionados"
+msgstr "items selected"
+
+#: admin/js/curation.js
+msgid "Selecionar Coleção"
+msgstr "Select Collection"
+
+#: admin/js/curation.js
+msgid "-- Selecione --"
+msgstr "-- Select --"
+
+#: admin/js/curation.js
+msgid "+ Criar nova coleção"
+msgstr "+ Create new collection"
+
+#: admin/js/curation.js
+msgid "Nome da Coleção"
+msgstr "Collection Name"
+
+#: admin/js/curation.js
+msgid "Ex: Semana dos Museus 2026"
+msgstr "E.g.: Museum Week 2026"
+
+#: admin/js/curation.js
+msgid "Selecione uma coleção"
+msgstr "Select a collection"
+
+#: admin/js/curation.js
+msgid "Nome da coleção é obrigatório"
+msgstr "Collection name is required"
+
+#: admin/js/curation.js
+msgid "Erro ao criar coleção: "
+msgstr "Error creating collection: "
+
+#: admin/js/curation.js
+msgid "itens adicionados à coleção!"
+msgstr "items added to collection!"
+
+#: admin/js/curation.js
+msgid "Erro ao adicionar: "
+msgstr "Error adding: "
+
+#: admin/js/collections.js
+msgid "Nova Coleção"
+msgstr "New Collection"
+
+#: admin/js/collections.js
+msgid "Criar"
+msgstr "Create"
+
+#: admin/js/collections.js
+msgid "Editar"
+msgstr "Edit"
+
+#: admin/js/collections.js
+msgid "Excluir"
+msgstr "Delete"
+
+#: admin/js/collections.js
+msgid "Excluir esta coleção? Os itens não serão removidos."
+msgstr "Delete this collection? Items will not be removed."
+
+#: admin/js/collections.js
+msgid "Coleção excluída!"
+msgstr "Collection deleted!"
+
+#: admin/js/collections.js
+msgid "Erro ao excluir: "
+msgstr "Error deleting: "
+
+#: admin/js/collections.js
+msgid "Agendar Coleção"
+msgstr "Schedule Collection"
+
+#: admin/js/collections.js
+msgid "Coleção agendada!"
+msgstr "Collection scheduled!"
+
+#: admin/js/collections.js
+msgid "Adicione itens à coleção antes de agendar"
+msgstr "Add items to the collection before scheduling"
+
+#: admin/js/collections.js
+msgid "publicados de"
+msgstr "published of"
+
+#: admin/js/collections.js
+msgid "Nenhuma coleção encontrada. Crie sua primeira coleção!"
+msgstr "No collections found. Create your first collection!"
+
+#: admin/js/collections.js
+msgid "Adicionar Itens"
+msgstr "Add Items"
+
+#: admin/js/collections.js
+msgid "Itens da Coleção"
+msgstr "Collection Items"
+
+#: admin/js/collections.js
+msgid "Remover"
+msgstr "Remove"
+
+#: admin/js/collections.js
+msgid "Item removido!"
+msgstr "Item removed!"
+
+#: admin/js/collections.js
+msgid "Salvar"
+msgstr "Save"
+
+#: admin/js/collections.js
+msgid "Coleção salva!"
+msgstr "Collection saved!"
+
+#: admin/js/collections.js
+msgid "Cor"
+msgstr "Color"
+
+#: admin/js/collections.js
+msgid "Remover este item da coleção?"
+msgstr "Remove this item from the collection?"
+
+#: admin/views/admin-page.php
+msgid "Menu"
+msgstr "Menu"
+
+#: admin/views/admin-page.php
+msgid "Dashboard"
+msgstr "Dashboard"
+
+#: admin/views/admin-page.php
+msgid "Visão geral"
+msgstr "Overview"
+
+#: admin/views/admin-page.php
+msgid "Gerenciar fontes de conteúdo"
+msgstr "Manage content sources"
+
+#: admin/views/admin-page.php
+msgid "Aprovar itens coletados"
+msgstr "Approve collected items"
+
+#: admin/views/admin-page.php
+msgid "Agrupar itens em coleções"
+msgstr "Group items into collections"
+
+#: admin/views/admin-page.php
+msgid "Fila de Publicação"
+msgstr "Publication Queue"
+
+#: admin/views/admin-page.php
+msgid "Agendar publicações"
+msgstr "Schedule publications"
+
+#: admin/views/admin-page.php
+msgid "Configurar Mastodon"
+msgstr "Configure Mastodon"
+
+#: admin/views/admin-page.php
+msgid "Logs e informações"
+msgstr "Logs and information"
+
+#: admin/views/admin-page.php
+msgid "Curadoria e publicação automatizada"
+msgstr "Automated curation and publishing"
+
+#: newsmast-curator.php
+msgid "Versão %s"
+msgstr "Version %s"
+
+#: includes/connectors/class-wordpress-connector.php
+msgid "URL obrigatória"
+msgstr "URL required"
+
+#: includes/connectors/class-wordpress-connector.php
+msgid "Endpoint da API"
+msgstr "API Endpoint"
+
+#: includes/connectors/class-wordpress-connector.php
+msgid "Posts por página"
+msgstr "Posts per page"
+
+#: includes/connectors/class-wordpress-connector.php
+msgid "%d posts encontrados"
+msgstr "%d posts found"
+
+#: includes/class-rest-api.php
+msgid "Nome é obrigatório."
+msgstr "Name is required."
+
+#: includes/class-rest-api.php
+msgid "Status inválido."
+msgstr "Invalid status."
+
+#: includes/class-collections.php
+msgid "Rascunho"
+msgstr "Draft"
+
+#: includes/class-scheduler.php
+msgid "Agendada"
+msgstr "Scheduled"
+
+#: includes/class-scheduler.php
+msgid "Publicada"
+msgstr "Published"
+
+#: includes/class-scheduler.php
+msgid "Parcial"
+msgstr "Partial"
+
+#: includes/class-rest-api.php
+msgid "Item é obrigatório"
+msgstr "Item is required"
+
+#: includes/class-rest-api.php
+msgid "Item não encontrado"
+msgstr "Item not found"
+
+#: includes/class-rest-api.php
+msgid "Conteúdo é obrigatório"
+msgstr "Content is required"
+
+#: includes/class-rest-api.php
+msgid "Falha ao criar publicação"
+msgstr "Failed to create publication"
+
+#: admin/js/queue.js
+msgid "Gerencie publicações agendadas para o Mastodon"
+msgstr "Manage scheduled publications for Mastodon"
+
+#: admin/js/queue.js
+msgid "Selecione um item aprovado na curadoria, edite o conteúdo e agende a data/hora da publicação no Mastodon."
+msgstr "Select an approved item from curation, edit the content, and schedule the date/time for publishing on Mastodon."
+
+#: admin/js/queue.js
+msgid "Agendadas"
+msgstr "Scheduled"
+
+#: admin/js/queue.js
+msgid "Publicadas"
+msgstr "Published"
+
+#: admin/js/queue.js
+msgid "Falhas"
+msgstr "Failed"
+
+#: admin/js/sources.js
+msgid "Coletar Agora"
+msgstr "Collect Now"
+
+#: admin/js/dashboard.js
+msgid "Visão geral do sistema de curadoria"
+msgstr "Curation system overview"
+
+#: admin/js/dashboard.js
+msgid "Fontes Ativas"
+msgstr "Active Sources"
+
+#: admin/js/dashboard.js
+msgid "Itens Coletados"
+msgstr "Collected Items"
+
+#: admin/js/dashboard.js
+msgid "Itens Aprovados"
+msgstr "Approved Items"
+
+#: admin/js/dashboard.js
+msgid "Publicações Agendadas"
+msgstr "Scheduled Publications"
+
+#: admin/js/dashboard.js
+msgid "Atividade Recente"
+msgstr "Recent Activity"
+
+#: admin/js/dashboard.js
+msgid "Próximas Publicações"
+msgstr "Upcoming Publications"
+
+#: admin/js/dashboard.js
+msgid "Ver Todas"
+msgstr "View All"
+
+#: includes/connectors/class-tainacan-connector.php
+msgid "ID da Coleção"
+msgstr "Collection ID"
+
+#: includes/connectors/class-tainacan-connector.php
+msgid "Itens por página"
+msgstr "Items per page"
+
+#: admin/js/settings.js
+msgid "Salvar Alterações"
+msgstr "Save Changes"
+
+#: admin/js/settings.js
+msgid "Configure a integração com Mastodon e o formato das publicações"
+msgstr "Configure Mastodon integration and publication format"
+
+#: admin/js/settings.js
+msgid "Conexão Mastodon"
+msgstr "Mastodon Connection"
+
+#: admin/js/settings.js
+msgid "Testar Conexão"
+msgstr "Test Connection"
+
+#: admin/js/settings.js
+msgid "Instância Mastodon"
+msgstr "Mastodon Instance"
+
+#: admin/js/settings.js
+msgid "URL completa da instância Mastodon (ex: https://mastodon.social)"
+msgstr "Full URL of the Mastodon instance (e.g.: https://mastodon.social)"
+
+#: admin/js/settings.js
+msgid "Token de Acesso"
+msgstr "Access Token"
+
+#: admin/js/settings.js
+msgid "Obtenha em: Sua Instância → Configurações → Desenvolvimento → Novo Aplicativo"
+msgstr "Get it from: Your Instance → Settings → Development → New Application"
+
+#: admin/js/settings.js
+msgid "Formato de Posts"
+msgstr "Post Format"
+
+#: admin/js/settings.js
+msgid "Variáveis Disponíveis"
+msgstr "Available Variables"
+
+#: admin/js/settings.js
+msgid "Título do item coletado da fonte"
+msgstr "Title of the item collected from the source"
+
+#: admin/js/settings.js
+msgid "Resumo ou trecho do conteúdo (auto-gerado se vazio)"
+msgstr "Summary or content excerpt (auto-generated if empty)"
+
+#: admin/js/settings.js
+msgid "Link original do item na fonte de conteúdo"
+msgstr "Original link of the item on the content source"
+
+#: admin/js/settings.js
+msgid "Hashtags padrão definidas abaixo"
+msgstr "Default hashtags defined below"
+
+#: admin/js/settings.js
+msgid "Template Padrão"
+msgstr "Default Template"
+
+#: admin/js/settings.js
+msgid "Este template será usado como base ao agendar publicações. Você pode editar o conteúdo individualmente ao agendar."
+msgstr "This template will be used as a base when scheduling publications. You can edit the content individually when scheduling."
+
+#: admin/js/settings.js
+msgid "Hashtags Padrão"
+msgstr "Default Hashtags"
+
+#: admin/js/settings.js
+msgid "Estas hashtags substituem a variável {hashtags} no template"
+msgstr "These hashtags replace the {hashtags} variable in the template"
+
+#: admin/js/settings.js
+msgid "Preview (exemplo com dados fictícios)"
+msgstr "Preview (example with sample data)"
+
+#: includes/class-rest-api.php
+msgid "Tipo de conector inválido."
+msgstr "Invalid connector type."
+
+#: includes/class-rest-api.php
+msgid "URL inválida."
+msgstr "Invalid URL."
+
+#: admin/js/sources.js
+msgid "Fontes de Conteúdo"
+msgstr "Content Sources"
+
+#: admin/js/sources.js
+msgid "Ajuda"
+msgstr "Help"
+
+#: admin/js/sources.js
+msgid "Nova Fonte"
+msgstr "New Source"
+
+#: admin/js/sources.js
+msgid "Gerencie as fontes de onde o conteúdo é coletado automaticamente para curadoria e publicação no Mastodon."
+msgstr "Manage the sources from which content is automatically collected for curation and publishing on Mastodon."
+
+#: admin/js/sources.js
+msgid "Como funciona?"
+msgstr "How does it work?"
+
+#: admin/js/sources.js
+msgid "Cadastre uma fonte"
+msgstr "Register a source"
+
+#: admin/js/sources.js
+msgid "Clique em \"Nova Fonte\" e preencha os dados."
+msgstr "Click \"New Source\" and fill in the details."
+
+#: admin/js/sources.js
+msgid "Colete conteúdo"
+msgstr "Collect content"
+
+#: admin/js/sources.js
+msgid "Clique \"Coletar\" ou aguarde a coleta automática."
+msgstr "Click \"Collect\" or wait for automatic collection."
+
+#: admin/js/sources.js
+msgid "Faça a curadoria"
+msgstr "Curate"
+
+#: admin/js/sources.js
+msgid "Vá em Curadoria e aprove os itens coletados."
+msgstr "Go to Curation and approve collected items."
+
+#: admin/js/sources.js
+msgid "Publique no Mastodon"
+msgstr "Publish on Mastodon"
+
+#: admin/js/sources.js
+msgid "Agende ou publique os itens aprovados."
+msgstr "Schedule or publish approved items."
+
+#: admin/js/sources.js
+msgid "Fontes Cadastradas"
+msgstr "Registered Sources"
+
+#: admin/js/sources.js
+msgid "Coletar Todas"
+msgstr "Collect All"
+
+#: admin/js/sources.js
+msgid "Nome da Fonte"
+msgstr "Source Name"
+
+#: admin/js/sources.js
+msgid "Ex: Notícias IBRAM, Blog do Museu Nacional..."
+msgstr "E.g.: IBRAM News, National Museum Blog..."
+
+#: admin/js/sources.js
+msgid "Escolha um nome descritivo para identificar esta fonte facilmente."
+msgstr "Choose a descriptive name to easily identify this source."
+
+#: admin/js/sources.js
+msgid "Tipo de Conector"
+msgstr "Connector Type"
+
+#: admin/js/sources.js
+msgid "Selecione o tipo de site..."
+msgstr "Select the site type..."
+
+#: admin/js/sources.js
+msgid "Selecione o tipo de site de onde deseja coletar conteúdo."
+msgstr "Select the type of site you want to collect content from."
+
+#: admin/js/sources.js
+msgid "URL"
+msgstr "URL"
+
+#: admin/js/sources.js
+msgid "URL completa da fonte de conteúdo"
+msgstr "Full URL of the content source"
+
+#: admin/js/sources.js
+msgid "Salvar Fonte"
+msgstr "Save Source"
+
+#: admin/js/sources.js
+msgid "Guia de Fontes de Conteúdo"
+msgstr "Content Sources Guide"
+
+#: admin/js/sources.js
+msgid "As fontes de conteúdo são sites de onde o plugin coleta automaticamente notícias, eventos e itens de acervo para que você possa selecionar e publicar no Mastodon."
+msgstr "Content sources are websites from which the plugin automatically collects news, events, and collection items so you can select and publish them on Mastodon."
+
+#: admin/js/sources.js
+msgid "Sites Plone CMS (gov.br)"
+msgstr "Plone CMS Sites (gov.br)"
+
+#: admin/js/sources.js
+msgid "Para coletar notícias de sites do governo que usam Plone CMS, como o portal do IBRAM."
+msgstr "To collect news from government sites that use Plone CMS, such as the IBRAM portal."
+
+#: admin/js/sources.js
+msgid "Exemplo:"
+msgstr "Example:"
+
+#: admin/js/sources.js
+msgid "O conector faz scraping da página HTML. Os seletores CSS padrão funcionam para a maioria dos sites gov.br."
+msgstr "The connector scrapes the HTML page. Default CSS selectors work for most gov.br sites."
+
+#: admin/js/sources.js
+msgid "Sites WordPress"
+msgstr "WordPress Sites"
+
+#: admin/js/sources.js
+msgid "Para coletar posts de qualquer site WordPress com REST API habilitada (padrão desde WP 4.7)."
+msgstr "To collect posts from any WordPress site with REST API enabled (default since WP 4.7)."
+
+#: admin/js/sources.js
+msgid "Teste antes: acesse site.com/wp-json/wp/v2/posts no navegador. Se retornar JSON, a API está ativa."
+msgstr "Test first: visit site.com/wp-json/wp/v2/posts in the browser. If it returns JSON, the API is active."
+
+#: admin/js/sources.js
+msgid "Repositórios Tainacan"
+msgstr "Tainacan Repositories"
+
+#: admin/js/sources.js
+msgid "Para coletar itens de acervos digitais que usam o plugin Tainacan."
+msgstr "To collect items from digital collections that use the Tainacan plugin."
+
+#: admin/js/sources.js
+msgid "O ID da coleção está na URL do admin do Tainacan: /admin/#/collections/123/items"
+msgstr "The collection ID is in the Tainacan admin URL: /admin/#/collections/123/items"
+
+#: admin/js/sources.js
+msgid "Entendi!"
+msgstr "Got it!"
+
+#: newsmast-curator.php
+msgid "Este plugin requer WordPress 5.8 ou superior."
+msgstr "This plugin requires WordPress 5.8 or higher."
+
+#: newsmast-curator.php
+msgid "Este plugin requer PHP 7.4 ou superior."
+msgstr "This plugin requires PHP 7.4 or higher."
+
+#: newsmast-curator.php
+msgid "Este plugin requer a extensão PHP %s."
+msgstr "This plugin requires the PHP extension %s."
+
+#: admin/js/queue.js
+msgid "A cada 5 minutos"
+msgstr "Every 5 minutes"
+
+#: admin/js/system.js
+msgid "Sistema e Logs"
+msgstr "System and Logs"
+
+#: admin/js/system.js
+msgid "Informações do sistema e registro de atividades"
+msgstr "System information and activity log"
+
+#: admin/js/system.js
+msgid "Informações do Sistema"
+msgstr "System Information"
+
+#: admin/js/system.js
+msgid "Versão do Plugin"
+msgstr "Plugin Version"
+
+#: admin/js/system.js
+msgid "Banco de Dados"
+msgstr "Database"
+
+#: admin/js/system.js
+msgid "Cron Jobs"
+msgstr "Cron Jobs"
+
+#: admin/js/system.js
+msgid "Job"
+msgstr "Job"
+
+#: admin/js/system.js
+msgid "Próxima Execução"
+msgstr "Next Execution"
+
+#: admin/js/system.js
+msgid "Coleta de Fontes"
+msgstr "Source Collection"
+
+#: admin/js/system.js
+msgid "Processamento de Publicações"
+msgstr "Publication Processing"
+
+#: admin/js/system.js
+msgid "Limpeza de Logs"
+msgstr "Log Cleanup"
+
+#: admin/js/system.js
+msgid "Não agendado"
+msgstr "Not scheduled"
+
+#: admin/js/system.js
+msgid "Logs Recentes"
+msgstr "Recent Logs"
+
+#: admin/js/system.js
+msgid "Todos"
+msgstr "All"
+
+#: admin/js/collections.js
+msgid "Agrupe itens curados em coleções temáticas para agendamento coordenado"
+msgstr "Group curated items into themed collections for coordinated scheduling"
+
+#: admin/js/collections.js
+msgid "Todas"
+msgstr "All"
+
+#: admin/js/collections.js
+msgid "Rascunhos"
+msgstr "Drafts"
+
+#: admin/js/curation.js
+msgid "Visualização em Grade"
+msgstr "Grid View"
+
+#: admin/js/curation.js
+msgid "Visualização em Lista"
+msgstr "List View"
+
+#: admin/js/curation.js
+msgid "Aprovar Selecionados"
+msgstr "Approve Selected"
+
+#: admin/js/curation.js
+msgid "Agendar Selecionados"
+msgstr "Schedule Selected"
+
+#: admin/js/curation.js
+msgid "Revise e aprove itens para publicação no Mastodon"
+msgstr "Review and approve items for publishing on Mastodon"
+
+#: admin/js/curation.js
+msgid "Novos"
+msgstr "New"
+
+#: admin/js/curation.js
+msgid "Aprovados"
+msgstr "Approved"
+
+#: admin/js/curation.js
+msgid "Selecionar Todos"
+msgstr "Select All"
+
+#: admin/js/curation.js
+msgid "selecionados"
+msgstr "selected"
+
+#: includes/class-rest-api.php
+msgid "ID da coleção obrigatório"
+msgstr "Collection ID required"
+
+#: admin/views/admin-page.php
+msgid "Documentação"
+msgstr "Documentation"
+
+#: admin/views/admin-page.php
+msgid "Suporte"
+msgstr "Support"

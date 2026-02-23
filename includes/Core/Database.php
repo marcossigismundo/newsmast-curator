@@ -28,7 +28,7 @@ class Database {
      *
      * @var string
      */
-    private $db_version = '1.0.0';
+    private $db_version = '1.1.0';
 
     /**
      * Construtor
@@ -43,6 +43,8 @@ class Database {
             'items' => $wpdb->prefix . 'nc_items',
             'publications' => $wpdb->prefix . 'nc_publications',
             'logs' => $wpdb->prefix . 'nc_logs',
+            'collections' => $wpdb->prefix . 'nc_collections',
+            'collection_items' => $wpdb->prefix . 'nc_collection_items',
         ];
     }
 
@@ -78,6 +80,8 @@ class Database {
             $this->create_items_table();
             $this->create_publications_table();
             $this->create_logs_table();
+            $this->create_collections_table();
+            $this->create_collection_items_table();
 
             update_option('nc_db_version', $this->db_version);
 
@@ -218,6 +222,62 @@ class Database {
             KEY idx_level (level),
             KEY idx_created_at (created_at),
             KEY idx_related (related_type, related_id)
+        ) {$charset_collate};";
+
+        require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+        dbDelta($sql);
+    }
+
+    /**
+     * Cria tabela de coleções
+     *
+     * @return void
+     */
+    private function create_collections_table() {
+        $table_name = $this->tables['collections'];
+        $charset_collate = $this->wpdb->get_charset_collate();
+
+        $sql = "CREATE TABLE {$table_name} (
+            id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+            name VARCHAR(255) NOT NULL,
+            description TEXT NULL,
+            color VARCHAR(7) DEFAULT '#457B9D',
+            status VARCHAR(20) DEFAULT 'draft',
+            scheduled_for DATETIME NULL,
+            interval_minutes INT DEFAULT 60,
+            created_by BIGINT(20) UNSIGNED NULL,
+            created_at DATETIME NOT NULL,
+            updated_at DATETIME NOT NULL,
+            PRIMARY KEY (id),
+            KEY idx_status (status),
+            KEY idx_scheduled_for (scheduled_for),
+            KEY idx_created_by (created_by)
+        ) {$charset_collate};";
+
+        require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+        dbDelta($sql);
+    }
+
+    /**
+     * Cria tabela pivot de itens de coleções
+     *
+     * @return void
+     */
+    private function create_collection_items_table() {
+        $table_name = $this->tables['collection_items'];
+        $charset_collate = $this->wpdb->get_charset_collate();
+
+        $sql = "CREATE TABLE {$table_name} (
+            id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+            collection_id BIGINT(20) UNSIGNED NOT NULL,
+            item_id BIGINT(20) UNSIGNED NOT NULL,
+            sort_order INT DEFAULT 0,
+            added_at DATETIME NOT NULL,
+            PRIMARY KEY (id),
+            UNIQUE KEY idx_collection_item (collection_id, item_id),
+            KEY idx_collection_id (collection_id),
+            KEY idx_item_id (item_id),
+            KEY idx_sort_order (sort_order)
         ) {$charset_collate};";
 
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
