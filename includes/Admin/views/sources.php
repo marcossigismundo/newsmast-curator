@@ -167,11 +167,11 @@
                 <div class="nc-help-example">
                     <strong><?php _e('Exemplo:', 'newsmast-curator'); ?></strong><br>
                     <code>URL: https://www.gov.br/museus/pt-br/assuntos/noticias</code><br>
-                    <code>CSS Selector: .tileItem (padrão para Plone)</code>
+                    <code><?php _e('Seletores padrão: .titulo, .subtitulo-noticia, .data, .newsImage', 'newsmast-curator'); ?></code>
                 </div>
                 <p class="nc-help-tip">
                     <span class="dashicons dashicons-info" style="color:var(--nc-accent);"></span>
-                    <?php _e('O conector faz scraping da página HTML. Os seletores CSS padrão funcionam para a maioria dos sites gov.br.', 'newsmast-curator'); ?>
+                    <?php _e('O conector extrai título, resumo, data, imagem e tags automaticamente. Os seletores padrão funcionam para a maioria dos sites gov.br.', 'newsmast-curator'); ?>
                 </p>
             </div>
 
@@ -257,39 +257,45 @@ jQuery(document).ready(function($) {
                             <div class="nc-step"><span class="nc-step-num">1</span> Acesse o site e navegue até a página de listagem de notícias</div>
                             <div class="nc-step"><span class="nc-step-num">2</span> Copie a URL completa da barra de endereços do navegador</div>
                             <div class="nc-step"><span class="nc-step-num">3</span> Cole a URL no campo abaixo</div>
-                            <div class="nc-step"><span class="nc-step-num">4</span> Os seletores CSS padrão funcionam para a maioria dos sites gov.br</div>
+                            <div class="nc-step"><span class="nc-step-num">4</span> Os seletores padrão extraem título, resumo, data, imagem e tags automaticamente</div>
                         </div>
                         <div class="nc-connector-tip">
                             <span class="dashicons dashicons-lightbulb"></span>
-                            <span>Altere os seletores CSS apenas se o site usar uma estrutura diferente do padrão Plone.</span>
+                            <span>Os seletores padrão funcionam para sites gov.br. Altere apenas se o site usar classes CSS diferentes.</span>
                         </div>
                     </div>
                 </div>`;
 
             fields = `
                 <div class="nc-form-group">
-                    <label class="nc-form-label">CSS Selector dos Itens</label>
-                    <input type="text" name="config[selector]" class="nc-form-control" value=".tileItem"
-                           placeholder=".tileItem">
-                    <span class="nc-form-help">Seletor CSS que identifica cada item de notícia na listagem. <strong>Padrão: .tileItem</strong></span>
+                    <label class="nc-form-label">Seletor do Container de Itens</label>
+                    <input type="text" name="config[selector]" class="nc-form-control" value="li"
+                           placeholder="li">
+                    <span class="nc-form-help">Tag ou classe que envolve cada item na listagem. <strong>Padrão: li</strong></span>
                 </div>
                 <div class="nc-form-group">
-                    <label class="nc-form-label">Selector do Título</label>
-                    <input type="text" name="config[title_selector]" class="nc-form-control" value=".tileHeadline a"
-                           placeholder=".tileHeadline a">
-                    <span class="nc-form-help">Seletor do título dentro de cada item. <strong>Padrão: .tileHeadline a</strong></span>
+                    <label class="nc-form-label">Seletor do Título</label>
+                    <input type="text" name="config[title_selector]" class="nc-form-control" value=".titulo"
+                           placeholder=".titulo">
+                    <span class="nc-form-help">Classe do elemento que contém o título (o link será buscado dentro). <strong>Padrão: .titulo</strong></span>
                 </div>
                 <div class="nc-form-group">
-                    <label class="nc-form-label">Selector do Resumo</label>
-                    <input type="text" name="config[description_selector]" class="nc-form-control" value=".tileBody .description"
-                           placeholder=".tileBody .description">
-                    <span class="nc-form-help">Seletor da descrição/resumo. <strong>Padrão: .tileBody .description</strong></span>
+                    <label class="nc-form-label">Seletor do Resumo</label>
+                    <input type="text" name="config[description_selector]" class="nc-form-control" value=".subtitulo-noticia"
+                           placeholder=".subtitulo-noticia">
+                    <span class="nc-form-help">Classe do resumo/subtítulo da notícia. <strong>Padrão: .subtitulo-noticia</strong></span>
                 </div>
                 <div class="nc-form-group">
-                    <label class="nc-form-label">Selector da Imagem</label>
-                    <input type="text" name="config[image_selector]" class="nc-form-control" value=".tileImage img"
-                           placeholder=".tileImage img">
-                    <span class="nc-form-help">Seletor da imagem de cada item. <strong>Padrão: .tileImage img</strong></span>
+                    <label class="nc-form-label">Seletor da Imagem</label>
+                    <input type="text" name="config[image_selector]" class="nc-form-control" value=".newsImage"
+                           placeholder=".newsImage">
+                    <span class="nc-form-help">Classe da imagem da notícia. <strong>Padrão: .newsImage</strong></span>
+                </div>
+                <div class="nc-form-group">
+                    <label class="nc-form-label">Seletor da Data</label>
+                    <input type="text" name="config[date_selector]" class="nc-form-control" value=".data"
+                           placeholder=".data">
+                    <span class="nc-form-help">Classe do elemento de data (formato dd/mm/yyyy). <strong>Padrão: .data</strong></span>
                 </div>`;
 
         } else if (type === 'wordpress') {
