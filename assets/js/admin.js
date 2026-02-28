@@ -224,12 +224,23 @@
             $('#nc-schedule-char-count').text('0');
 
             var now = new Date();
-            now.setHours(now.getHours() + 1, 0, 0, 0);
+            // Set default to 30 minutes from now (allows same-day scheduling)
+            now.setMinutes(now.getMinutes() + 30, 0, 0);
             var y = now.getFullYear();
             var m = String(now.getMonth() + 1).padStart(2, '0');
             var d = String(now.getDate()).padStart(2, '0');
             var h = String(now.getHours()).padStart(2, '0');
-            $('#nc-schedule-datetime').val(y + '-' + m + '-' + d + 'T' + h + ':00');
+            var min = String(now.getMinutes()).padStart(2, '0');
+            $('#nc-schedule-datetime').val(y + '-' + m + '-' + d + 'T' + h + ':' + min);
+
+            // Set min attribute to prevent retroactive scheduling
+            var minNow = new Date();
+            var minY = minNow.getFullYear();
+            var minM = String(minNow.getMonth() + 1).padStart(2, '0');
+            var minD = String(minNow.getDate()).padStart(2, '0');
+            var minH = String(minNow.getHours()).padStart(2, '0');
+            var minMin = String(minNow.getMinutes()).padStart(2, '0');
+            $('#nc-schedule-datetime').attr('min', minY + '-' + minM + '-' + minD + 'T' + minH + ':' + minMin);
 
             this.loadApprovedItems(itemId);
             this.openModal('nc-schedule-modal');
@@ -384,6 +395,14 @@
             var content = $('#nc-schedule-content').val();
             if (content.length > 500) {
                 this.showNotice('warning', NC.__('content_too_long', 'O conteúdo excede 500 caracteres. Reduza o texto antes de agendar.'));
+                return;
+            }
+
+            var scheduledDate = new Date($('#nc-schedule-datetime').val());
+            var nowCheck = new Date();
+            nowCheck.setSeconds(nowCheck.getSeconds() - 60); // 60s tolerance
+            if (scheduledDate < nowCheck) {
+                this.showNotice('warning', NC.__('date_not_retroactive', 'A data não pode ser retroativa. Selecione o horário atual ou futuro.'));
                 return;
             }
 
@@ -569,8 +588,10 @@
             }
 
             var start = new Date(startStr);
-            if (start <= new Date()) {
-                this.showNotice('warning', NC.__('date_must_be_future', 'A data da primeira publicação deve ser no futuro'));
+            var nowBulk = new Date();
+            nowBulk.setSeconds(nowBulk.getSeconds() - 60); // 60s tolerance
+            if (start < nowBulk) {
+                this.showNotice('warning', NC.__('date_not_retroactive', 'A data não pode ser retroativa. Selecione o horário atual ou futuro.'));
                 return;
             }
 

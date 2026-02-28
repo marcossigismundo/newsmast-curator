@@ -20,11 +20,26 @@ class Scheduler_Service {
     }
 
     public function process_scheduled_publications() {
-        if ($this->is_locked()) return;
-        if (!$this->acquire_lock()) return;
+        if ($this->is_locked()) {
+            $this->logger->info('Scheduler bloqueado por lock ativo', [
+                'related_type' => 'scheduler',
+            ]);
+            return;
+        }
+        if (!$this->acquire_lock()) {
+            $this->logger->warning('Scheduler não conseguiu adquirir lock', [
+                'related_type' => 'scheduler',
+            ]);
+            return;
+        }
 
         try {
             $publications = $this->pub_repo->find_pending_for_processing(5);
+
+            $this->logger->info('Scheduler executando', [
+                'related_type' => 'scheduler',
+                'details' => sprintf('Encontradas %d publicações pendentes', count($publications)),
+            ]);
 
             foreach ($publications as $pub) {
                 $this->process_publication($pub);
@@ -83,11 +98,31 @@ class Scheduler_Service {
 
     private function is_locked() {
         $lock = get_option($this->lock_key);
-        return $lock && $lock > time();
+        if (!$lock) {
+            return false;
+        }
+        // If lock has expired, clean it up so acquire_lock can work
+        if ($lock <= time()) {
+            delete_option($this->lock_key);
+            return false;
+        }
+        return true;
     }
 
     private function acquire_lock() {
-        return add_option($this->lock_key, time() + 300, '', 'no');
+        // First try add_option (for when option doesn't exist)
+        if (add_option($this->lock_key, time() + 300, '', 'no')) {
+            return true;
+        }
+        // If add_option failed, the option might exist with expired value
+        // Try to update it (atomic check via current value)
+        $current = get_option($this->lock_key);
+        if ($current && $current <= time()) {
+            // Lock expired, take ownership
+            update_option($this->lock_key, time() + 300, 'no');
+            return true;
+        }
+        return false;
     }
 
     private function release_lock() {

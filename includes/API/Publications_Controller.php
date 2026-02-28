@@ -49,17 +49,23 @@ class Publications_Controller extends Base_REST_Controller {
         }
 
         $timestamp = strtotime($scheduled_for);
-        if (!$timestamp || $timestamp <= time()) {
-            return $this->prepare_error(__('Data de agendamento deve ser no futuro', 'newsmast-curator'), 'validation_error', 400);
+        // Allow same-day scheduling: accept if scheduled_for is within 60 seconds in the past
+        // (to account for processing delay), but never truly retroactive
+        $now = current_time('timestamp');
+        if (!$timestamp || $timestamp < ($now - 60)) {
+            return $this->prepare_error(__('Data de agendamento deve ser atual ou futura (não retroativa)', 'newsmast-curator'), 'validation_error', 400);
         }
 
         if (empty($content)) {
             return $this->prepare_error(__('Conteúdo é obrigatório', 'newsmast-curator'), 'validation_error', 400);
         }
 
+        // Normalize datetime to MySQL format (Y-m-d H:i:s) for consistent DB comparison
+        $normalized_datetime = date('Y-m-d H:i:s', $timestamp);
+
         $pub = new Publication();
         $pub->set_item_id($item_id);
-        $pub->set_scheduled_for($scheduled_for);
+        $pub->set_scheduled_for($normalized_datetime);
         $pub->set_content($content);
         $pub->set_published_by(get_current_user_id());
 

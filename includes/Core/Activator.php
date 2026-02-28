@@ -167,13 +167,18 @@ class Activator {
      * @return void
      */
     private static function schedule_cron_jobs() {
+        // Ensure custom intervals are registered before scheduling
+        // (at activation time, Plugin::run() hasn't added the filter yet)
+        add_filter('cron_schedules', [self::class, 'add_cron_intervals']);
+
         // Cron de coleta de fontes
         if (!wp_next_scheduled('nc_collect_sources')) {
             wp_schedule_event(time(), 'hourly', 'nc_collect_sources');
         }
 
-        // Cron de processamento de publicações
-        if (!wp_next_scheduled('nc_process_publications')) {
+        // Cron de processamento de publicações - reschedule to ensure it uses valid interval
+        $next = wp_next_scheduled('nc_process_publications');
+        if (!$next) {
             wp_schedule_event(time(), 'every_5_minutes', 'nc_process_publications');
         }
 
