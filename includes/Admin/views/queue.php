@@ -8,6 +8,10 @@
             <span class="dashicons dashicons-plus-alt2"></span>
             <?php _e('Agendar Publicação', 'newsmast-curator'); ?>
         </button>
+        <button class="nc-button nc-button-success" id="nc-btn-process-now" onclick="NC.processQueueNow()">
+            <span class="dashicons dashicons-controls-play"></span>
+            <?php _e('Processar Fila Agora', 'newsmast-curator'); ?>
+        </button>
     </div>
     <p class="nc-page-description"><?php _e('Gerencie publicações agendadas para o Mastodon', 'newsmast-curator'); ?></p>
 </div>
@@ -125,6 +129,27 @@ NC.loadPublications = function(status) {
                 '<span class="dashicons dashicons-dismiss"></span> Erro ao carregar publicações' +
             '</div>'
         );
+    });
+};
+
+NC.processQueueNow = function() {
+    var $btn = jQuery('#nc-btn-process-now');
+    $btn.prop('disabled', true).find('.dashicons').removeClass('dashicons-controls-play').addClass('dashicons-update nc-spin');
+    NC.showNotice('info', 'Processando fila de publicações...');
+
+    wp.apiFetch({
+        path: ncData.apiUrl + '/publications/process-now',
+        method: 'POST'
+    }).then(function(response) {
+        var published = response.stats ? (response.stats.published || 0) : 0;
+        var failed = response.stats ? (response.stats.failed || 0) : 0;
+        NC.showNotice('success', 'Fila processada! Publicadas: ' + published + ' | Falhas: ' + failed);
+        NC.loadPublications('scheduled');
+        NC.loadPublicationCounts();
+    }).catch(function(error) {
+        NC.showNotice('error', 'Erro ao processar fila: ' + (error.message || ''));
+    }).finally(function() {
+        $btn.prop('disabled', false).find('.dashicons').removeClass('dashicons-update nc-spin').addClass('dashicons-controls-play');
     });
 };
 </script>

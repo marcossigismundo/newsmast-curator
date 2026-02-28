@@ -1017,6 +1017,11 @@ select.nc-form-control {
     }
 }
 
+.nc-spin {
+    animation: spin 1s linear infinite;
+    display: inline-block;
+}
+
 /* ===========================
    Connector Info (Source Modal)
    =========================== */

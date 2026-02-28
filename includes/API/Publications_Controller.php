@@ -17,6 +17,10 @@ class Publications_Controller extends Base_REST_Controller {
         register_rest_route($this->namespace, '/' . $this->rest_base . '/(?P<id>[\d]+)', [
             ['methods' => 'DELETE', 'callback' => [$this, 'delete_item'], 'permission_callback' => [$this, 'check_permissions']],
         ]);
+
+        register_rest_route($this->namespace, '/' . $this->rest_base . '/process-now', [
+            ['methods' => 'POST', 'callback' => [$this, 'process_now'], 'permission_callback' => [$this, 'check_permissions']],
+        ]);
     }
 
     public function get_items($request) {
@@ -79,5 +83,19 @@ class Publications_Controller extends Base_REST_Controller {
         $repo = new Publication_Repository($this->database);
         $result = $repo->delete($request['id']);
         return $result ? $this->prepare_response(['success' => true]) : $this->prepare_error('Failed');
+    }
+
+    public function process_now($request) {
+        $scheduler = new \NewsmastCurator\Services\Scheduler_Service($this->database);
+        $scheduler->process_scheduled_publications();
+
+        $repo = new Publication_Repository($this->database);
+        $stats = $repo->get_stats();
+
+        return $this->prepare_response([
+            'success' => true,
+            'message' => __('Fila processada', 'newsmast-curator'),
+            'stats' => $stats,
+        ]);
     }
 }
