@@ -267,8 +267,10 @@ class Collections_Controller extends Base_REST_Controller {
         }
 
         $start_timestamp = strtotime($scheduled_for);
-        if (!$start_timestamp || $start_timestamp <= time()) {
-            return $this->prepare_error(__('Data de agendamento deve ser no futuro', 'newsmast-curator'), 'validation_error', 400);
+        // Allow same-day scheduling with 60s tolerance, but never retroactive
+        $now = current_time('timestamp');
+        if (!$start_timestamp || $start_timestamp < ($now - 60)) {
+            return $this->prepare_error(__('Data de agendamento deve ser atual ou futura (não retroativa)', 'newsmast-curator'), 'validation_error', 400);
         }
 
         if ($interval < 1) {
@@ -299,7 +301,7 @@ class Collections_Controller extends Base_REST_Controller {
         }
 
         $collection->set_status(Collection::STATUS_SCHEDULED);
-        $collection->set_scheduled_for($scheduled_for);
+        $collection->set_scheduled_for(date('Y-m-d H:i:s', $start_timestamp));
         $collection->set_interval_minutes($interval);
         $repo->update($collection);
 

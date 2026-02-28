@@ -412,6 +412,16 @@ NC.openScheduleCollectionModal = function(id, itemsCount) {
     jQuery('#nc-schedule-coll-date').val(now.toISOString().slice(0, 16));
     jQuery('#nc-schedule-coll-interval').val('60');
 
+    // Set min attribute to prevent retroactive scheduling
+    var minNowColl = new Date();
+    jQuery('#nc-schedule-coll-date').attr('min',
+        minNowColl.getFullYear() + '-' +
+        String(minNowColl.getMonth() + 1).padStart(2, '0') + '-' +
+        String(minNowColl.getDate()).padStart(2, '0') + 'T' +
+        String(minNowColl.getHours()).padStart(2, '0') + ':' +
+        String(minNowColl.getMinutes()).padStart(2, '0')
+    );
+
     NC.updateScheduleCollectionTimeline();
     NC.openModal('nc-schedule-collection-modal');
 };
@@ -457,8 +467,10 @@ NC.submitScheduleCollection = function() {
         return;
     }
 
-    if (new Date(startDate) <= new Date()) {
-        NC.showNotice('warning', NC.__('date_must_be_future', 'A data da primeira publicação deve ser no futuro'));
+    var nowCollCheck = new Date();
+    nowCollCheck.setSeconds(nowCollCheck.getSeconds() - 60); // 60s tolerance
+    if (new Date(startDate) < nowCollCheck) {
+        NC.showNotice('warning', NC.__('date_not_retroactive', 'A data não pode ser retroativa. Selecione o horário atual ou futuro.'));
         return;
     }
 
