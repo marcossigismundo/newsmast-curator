@@ -90,13 +90,15 @@ class Mastodon_Service {
             'method' => $method,
             'headers' => [
                 'Authorization' => 'Bearer ' . $this->access_token,
-                'Content-Type' => 'application/json',
             ],
             'timeout' => 30,
         ];
 
         if ($method === 'POST' && !empty($data)) {
-            $args['body'] = wp_json_encode($data);
+            // Use form-urlencoded (Mastodon API standard) instead of JSON
+            $args['body'] = $data;
+        } elseif ($method === 'GET') {
+            $args['headers']['Content-Type'] = 'application/json';
         }
 
         $response = wp_remote_request($url, $args);
@@ -105,11 +107,23 @@ class Mastodon_Service {
             throw new \Exception($response->get_error_message());
         }
 
+        $body = wp_remote_retrieve_body($response);
         $code = wp_remote_retrieve_response_code($response);
+
         if ($code < 200 || $code >= 300) {
-            throw new \Exception(sprintf(__('Erro API Mastodon: %d', 'newsmast-curator'), $code));
+            // Include Mastodon's error detail in the exception
+            $error_detail = '';
+            $decoded = json_decode($body, true);
+            if ($decoded && isset($decoded['error'])) {
+                $error_detail = ': ' . $decoded['error'];
+            }
+            throw new \Exception(sprintf(
+                __('Erro API Mastodon: %d%s', 'newsmast-curator'),
+                $code,
+                $error_detail
+            ));
         }
 
-        return json_decode(wp_remote_retrieve_body($response), true);
+        return json_decode($body, true);
     }
 }
