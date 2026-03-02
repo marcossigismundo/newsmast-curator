@@ -18,6 +18,10 @@ class Publications_Controller extends Base_REST_Controller {
             ['methods' => 'DELETE', 'callback' => [$this, 'delete_item'], 'permission_callback' => [$this, 'check_permissions']],
         ]);
 
+        register_rest_route($this->namespace, '/' . $this->rest_base . '/(?P<id>[\d]+)/retry', [
+            ['methods' => 'POST', 'callback' => [$this, 'retry_item'], 'permission_callback' => [$this, 'check_permissions']],
+        ]);
+
         register_rest_route($this->namespace, '/' . $this->rest_base . '/process-now', [
             ['methods' => 'POST', 'callback' => [$this, 'process_now'], 'permission_callback' => [$this, 'check_permissions']],
         ]);
@@ -83,6 +87,30 @@ class Publications_Controller extends Base_REST_Controller {
         $repo = new Publication_Repository($this->database);
         $result = $repo->delete($request['id']);
         return $result ? $this->prepare_response(['success' => true]) : $this->prepare_error('Failed');
+    }
+
+    public function retry_item($request) {
+        $repo = new Publication_Repository($this->database);
+        $pub = $repo->find((int) $request['id']);
+
+        if (!$pub) {
+            return $this->prepare_error(__('Publicação não encontrada', 'newsmast-curator'), 'not_found', 404);
+        }
+
+        if ($pub->get_status() !== Publication::STATUS_FAILED) {
+            return $this->prepare_error(__('Somente publicações com falha podem ser reagendadas', 'newsmast-curator'), 'invalid_status', 400);
+        }
+
+        $pub->set_status(Publication::STATUS_SCHEDULED);
+        $pub->set_scheduled_for(date('Y-m-d H:i:s', time() + 60));
+        $pub->set_attempt_count(0);
+        $pub->set_last_error('');
+        $repo->update($pub);
+
+        return $this->prepare_response([
+            'success' => true,
+            'message' => __('Publicação reagendada', 'newsmast-curator'),
+        ]);
     }
 
     public function process_now($request) {

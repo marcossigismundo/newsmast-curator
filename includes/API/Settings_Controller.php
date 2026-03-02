@@ -31,7 +31,9 @@ class Settings_Controller extends Base_REST_Controller {
 
     public function save_settings($request) {
         if (isset($request['mastodon_instance'])) update_option('nc_mastodon_instance', esc_url_raw($request['mastodon_instance']));
-        if (isset($request['mastodon_token'])) update_option('nc_mastodon_token', sanitize_text_field($request['mastodon_token']));
+        if (isset($request['mastodon_token']) && !empty($request['mastodon_token']) && $request['mastodon_token'] !== '********') {
+            update_option('nc_mastodon_token', sanitize_text_field($request['mastodon_token']));
+        }
         if (isset($request['post_template'])) update_option('nc_post_template', sanitize_textarea_field($request['post_template']));
         if (isset($request['default_hashtags'])) update_option('nc_default_hashtags', sanitize_text_field($request['default_hashtags']));
 

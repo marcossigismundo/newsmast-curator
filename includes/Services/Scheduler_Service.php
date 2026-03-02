@@ -4,6 +4,7 @@ namespace NewsmastCurator\Services;
 use NewsmastCurator\Core\Database;
 use NewsmastCurator\Repositories\Publication_Repository;
 use NewsmastCurator\Repositories\Collection_Repository;
+use NewsmastCurator\Repositories\Item_Repository;
 
 class Scheduler_Service {
     private $database;
@@ -60,7 +61,7 @@ class Scheduler_Service {
         $this->pub_repo->update($pub);
 
         try {
-            $media_ids = [];
+            $media_ids = $this->upload_item_image($pub);
             $result = $this->mastodon_service->post_status($pub->get_content(), $media_ids);
 
             if ($result && isset($result['id'])) {
@@ -93,6 +94,66 @@ class Scheduler_Service {
             }
 
             $this->pub_repo->update($pub);
+        }
+    }
+
+    private function upload_item_image($pub) {
+        $item_repo = new Item_Repository($this->database);
+        $item = $item_repo->find($pub->get_item_id());
+
+        if (!$item || !$item->has_image()) {
+            return [];
+        }
+
+        $image_url = $item->get_image();
+        if (empty($image_url)) {
+            return [];
+        }
+
+        $tmp_file = null;
+        try {
+            // If it's a local WordPress attachment, get the file path directly
+            if ($item->get_image_local_id()) {
+                $local_path = get_attached_file($item->get_image_local_id());
+                if ($local_path && file_exists($local_path)) {
+                    $media_id = $this->mastodon_service->upload_media($local_path);
+                    return $media_id ? [$media_id] : [];
+                }
+            }
+
+            // Download remote image to temp file
+            $response = wp_remote_get($image_url, ['timeout' => 15]);
+            if (is_wp_error($response)) {
+                $this->logger->warning('Falha ao baixar imagem para upload', [
+                    'related_type' => 'publication',
+                    'related_id' => $pub->get_id(),
+                    'error' => $response->get_error_message(),
+                ]);
+                return [];
+            }
+
+            $body = wp_remote_retrieve_body($response);
+            if (empty($body)) {
+                return [];
+            }
+
+            $ext = pathinfo(wp_parse_url($image_url, PHP_URL_PATH), PATHINFO_EXTENSION) ?: 'jpg';
+            $tmp_file = wp_tempnam('nc_media_.' . $ext);
+            file_put_contents($tmp_file, $body);
+
+            $media_id = $this->mastodon_service->upload_media($tmp_file);
+            return $media_id ? [$media_id] : [];
+        } catch (\Exception $e) {
+            $this->logger->warning('Falha no upload de imagem, publicando sem mídia', [
+                'related_type' => 'publication',
+                'related_id' => $pub->get_id(),
+                'error' => $e->getMessage(),
+            ]);
+            return [];
+        } finally {
+            if ($tmp_file && file_exists($tmp_file)) {
+                @unlink($tmp_file);
+            }
         }
     }
 

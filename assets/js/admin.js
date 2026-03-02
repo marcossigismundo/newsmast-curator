@@ -650,7 +650,18 @@
 
         retryPublication: function(id) {
             if (!confirm(NC.__('confirm_reschedule', 'Reagendar esta publicação?'))) return;
-            this.showNotice('info', NC.__('retry_info', 'A publicação será reprocessada automaticamente na próxima execução do cron.'));
+
+            wp.apiFetch({
+                path: ncData.apiUrl + '/publications/' + id + '/retry',
+                method: 'POST'
+            }).then(function() {
+                NC.showNotice('success', NC.__('publication_rescheduled', 'Publicação reagendada com sucesso!'));
+                if (typeof NC.loadPublications === 'function') {
+                    NC.loadPublications('failed');
+                }
+            }).catch(function(error) {
+                NC.showNotice('error', NC.__('retry_error', 'Erro ao reagendar: ') + (error.message || ''));
+            });
         },
 
         // ========== Settings ==========
@@ -679,12 +690,15 @@
         },
 
         saveSettings: function() {
+            var token = $('#nc-setting-token').val();
             var data = {
                 mastodon_instance: $('#nc-setting-instance').val(),
-                mastodon_token: $('#nc-setting-token').val(),
                 post_template: $('#nc-setting-template').val(),
                 default_hashtags: $('#nc-setting-hashtags').val()
             };
+            if (token && token !== '********') {
+                data.mastodon_token = token;
+            }
 
             wp.apiFetch({
                 path: ncData.apiUrl + '/settings',

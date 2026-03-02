@@ -52,7 +52,7 @@ class Mastodon_Service {
         }
 
         $code = wp_remote_retrieve_response_code($response);
-        if ($code !== 200) {
+        if ($code !== 200 && $code !== 202) {
             throw new \Exception(sprintf(__('Erro ao fazer upload: %d', 'newsmast-curator'), $code));
         }
 
