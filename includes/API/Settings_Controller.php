@@ -30,7 +30,12 @@ class Settings_Controller extends Base_REST_Controller {
     }
 
     public function save_settings($request) {
-        if (isset($request['mastodon_instance'])) update_option('nc_mastodon_instance', esc_url_raw($request['mastodon_instance']));
+        if (isset($request['mastodon_instance'])) {
+            $instance_url = esc_url_raw($request['mastodon_instance']);
+            // Strip common frontend paths — only the base URL is needed for API calls
+            $instance_url = preg_replace('#/(home|web|public|about|auth)(/.*)?$#', '', rtrim($instance_url, '/'));
+            update_option('nc_mastodon_instance', $instance_url);
+        }
         if (isset($request['mastodon_token']) && !empty($request['mastodon_token']) && $request['mastodon_token'] !== '********') {
             update_option('nc_mastodon_token', sanitize_text_field($request['mastodon_token']));
         }

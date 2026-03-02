@@ -57,22 +57,48 @@ class Scheduler_Service {
     }
 
     private function process_publication($pub) {
+        $content = $pub->get_content();
+        $content_preview = mb_substr(wp_strip_all_tags($content), 0, 80);
+
+        $this->logger->info('Iniciando processamento de publicação', [
+            'related_type' => 'publication',
+            'related_id' => $pub->get_id(),
+            'details' => sprintf('Item #%d | Agendada para: %s', $pub->get_item_id(), $pub->get_scheduled_for()),
+            'content_preview' => $content_preview,
+            'attempt' => $pub->get_attempt_count() + 1,
+        ]);
+
         $pub->mark_as_processing();
         $this->pub_repo->update($pub);
 
         try {
             $media_ids = $this->upload_item_image($pub);
-            $result = $this->mastodon_service->post_status($pub->get_content(), $media_ids);
+
+            if (!empty($media_ids)) {
+                $this->logger->info('Imagem enviada ao Mastodon', [
+                    'related_type' => 'publication',
+                    'related_id' => $pub->get_id(),
+                    'details' => sprintf('media_ids: %s', implode(', ', $media_ids)),
+                    'media_count' => count($media_ids),
+                ]);
+            }
+
+            $result = $this->mastodon_service->post_status($content, $media_ids);
 
             if ($result && isset($result['id'])) {
                 $pub->mark_as_published($result['id'], $result['url'] ?? '');
                 $this->pub_repo->update($pub);
-                $this->logger->success('Publicação realizada', [
+                $this->logger->success('Publicação realizada com sucesso', [
                     'related_type' => 'publication',
                     'related_id' => $pub->get_id(),
+                    'mastodon_id' => $result['id'],
+                    'mastodon_url' => $result['url'] ?? '',
+                    'content_preview' => $content_preview,
+                    'media_count' => count($media_ids),
+                    'details' => sprintf('Mastodon ID: %s | Mídia: %d', $result['id'], count($media_ids)),
                 ]);
             } else {
-                throw new \Exception('Resposta inválida do Mastodon');
+                throw new \Exception('Resposta inválida do Mastodon: ' . wp_json_encode($result));
             }
         } catch (\Exception $e) {
             $pub->increment_attempts();
@@ -83,6 +109,9 @@ class Scheduler_Service {
                     'related_type' => 'publication',
                     'related_id' => $pub->get_id(),
                     'error' => $e->getMessage(),
+                    'attempt' => $pub->get_attempt_count(),
+                    'details' => sprintf('Tentativa %d/%d | Próxima em 10min', $pub->get_attempt_count(), get_option('nc_max_attempts', 3)),
+                    'content_preview' => $content_preview,
                 ]);
             } else {
                 $pub->mark_as_failed($e->getMessage());
@@ -90,6 +119,9 @@ class Scheduler_Service {
                     'related_type' => 'publication',
                     'related_id' => $pub->get_id(),
                     'error' => $e->getMessage(),
+                    'attempt' => $pub->get_attempt_count(),
+                    'details' => sprintf('Esgotadas %d tentativas', $pub->get_attempt_count()),
+                    'content_preview' => $content_preview,
                 ]);
             }
 
@@ -102,6 +134,11 @@ class Scheduler_Service {
         $item = $item_repo->find($pub->get_item_id());
 
         if (!$item || !$item->has_image()) {
+            $this->logger->info('Publicação sem imagem associada', [
+                'related_type' => 'publication',
+                'related_id' => $pub->get_id(),
+                'details' => 'Publicando somente texto',
+            ]);
             return [];
         }
 
@@ -109,6 +146,12 @@ class Scheduler_Service {
         if (empty($image_url)) {
             return [];
         }
+
+        $this->logger->info('Preparando upload de imagem', [
+            'related_type' => 'publication',
+            'related_id' => $pub->get_id(),
+            'details' => sprintf('URL: %s | Local ID: %s', $image_url, $item->get_image_local_id() ?: 'N/A'),
+        ]);
 
         $tmp_file = null;
         try {
@@ -128,18 +171,31 @@ class Scheduler_Service {
                     'related_type' => 'publication',
                     'related_id' => $pub->get_id(),
                     'error' => $response->get_error_message(),
+                    'details' => sprintf('URL: %s', $image_url),
                 ]);
                 return [];
             }
 
+            $http_code = wp_remote_retrieve_response_code($response);
             $body = wp_remote_retrieve_body($response);
             if (empty($body)) {
+                $this->logger->warning('Imagem vazia ou inacessível', [
+                    'related_type' => 'publication',
+                    'related_id' => $pub->get_id(),
+                    'details' => sprintf('HTTP %d | URL: %s', $http_code, $image_url),
+                ]);
                 return [];
             }
 
             $ext = pathinfo(wp_parse_url($image_url, PHP_URL_PATH), PATHINFO_EXTENSION) ?: 'jpg';
             $tmp_file = wp_tempnam('nc_media_.' . $ext);
             file_put_contents($tmp_file, $body);
+
+            $this->logger->info('Imagem baixada, enviando ao Mastodon', [
+                'related_type' => 'publication',
+                'related_id' => $pub->get_id(),
+                'details' => sprintf('Tamanho: %s | Tipo: .%s', size_format(strlen($body)), $ext),
+            ]);
 
             $media_id = $this->mastodon_service->upload_media($tmp_file);
             return $media_id ? [$media_id] : [];
@@ -148,6 +204,7 @@ class Scheduler_Service {
                 'related_type' => 'publication',
                 'related_id' => $pub->get_id(),
                 'error' => $e->getMessage(),
+                'details' => sprintf('URL: %s', $image_url),
             ]);
             return [];
         } finally {

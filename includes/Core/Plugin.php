@@ -101,6 +101,9 @@ class Plugin {
         // Registra cron hooks
         $this->init_cron_hooks();
 
+        // Registra endpoint externo de cron (independente de WP-Cron)
+        $this->init_external_cron();
+
         // Hook de inicialização completa
         do_action('nc_loaded', $this);
     }
@@ -208,6 +211,70 @@ class Plugin {
                 $retention_days = get_option('nc_log_retention_days', 30);
                 $logger->clear_old_logs($retention_days);
             }
+        });
+    }
+
+    /**
+     * Registra endpoint externo de cron
+     *
+     * Permite disparar o processamento via URL direta, sem depender do WP-Cron.
+     * Uso: wget -q -O /dev/null "https://seusite.com/?nc_cron=1&token=SEU_TOKEN"
+     *
+     * O token é gerado automaticamente na ativação e armazenado em nc_cron_secret.
+     */
+    private function init_external_cron() {
+        add_action('init', function() {
+            if (!isset($_GET['nc_cron'])) {
+                return;
+            }
+
+            $secret = get_option('nc_cron_secret', '');
+            if (empty($secret)) {
+                // Generate secret on first use
+                $secret = wp_generate_password(32, false);
+                update_option('nc_cron_secret', $secret, false);
+            }
+
+            $token = isset($_GET['token']) ? sanitize_text_field($_GET['token']) : '';
+            if (!hash_equals($secret, $token)) {
+                status_header(403);
+                echo 'Forbidden';
+                exit;
+            }
+
+            // Disable WP-Cron on this request to avoid double execution
+            if (!defined('DOING_CRON')) {
+                define('DOING_CRON', true);
+            }
+
+            $action = isset($_GET['action']) ? sanitize_text_field($_GET['action']) : 'all';
+
+            $results = [];
+
+            if ($action === 'all' || $action === 'publications') {
+                $scheduler = new \NewsmastCurator\Services\Scheduler_Service($this->database);
+                $scheduler->process_scheduled_publications();
+                $results[] = 'publications processed';
+            }
+
+            if ($action === 'all' || $action === 'collect') {
+                $collection_service = new \NewsmastCurator\Services\Collection_Service($this->database);
+                $collection_service->collect_all_sources();
+                $results[] = 'sources collected';
+            }
+
+            if ($action === 'all' || $action === 'cleanup') {
+                $logger = $this->get_service('logger');
+                if ($logger) {
+                    $retention_days = get_option('nc_log_retention_days', 30);
+                    $logger->clear_old_logs($retention_days);
+                    $results[] = 'logs cleaned';
+                }
+            }
+
+            header('Content-Type: text/plain');
+            echo 'OK: ' . implode(', ', $results);
+            exit;
         });
     }
 

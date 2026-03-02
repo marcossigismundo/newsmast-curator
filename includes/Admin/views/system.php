@@ -73,6 +73,28 @@
                 <?php endforeach; ?>
             </tbody>
         </table>
+
+        <?php
+        $cron_secret = get_option('nc_cron_secret', '');
+        if (empty($cron_secret)) {
+            $cron_secret = wp_generate_password(32, false);
+            update_option('nc_cron_secret', $cron_secret, false);
+        }
+        $cron_url = home_url('/?nc_cron=1&token=' . $cron_secret);
+        ?>
+        <div style="margin-top:20px;padding:15px;background:var(--nc-bg-alt,#f8f9fa);border-radius:8px;">
+            <h3 style="margin:0 0 10px;font-size:14px;">
+                <span class="dashicons dashicons-admin-generic" style="color:var(--nc-accent);"></span>
+                <?php _e('Cron Externo (recomendado)', 'newsmast-curator'); ?>
+            </h3>
+            <p style="margin:0 0 8px;font-size:13px;color:#6C757D;">
+                <?php _e('Para não depender de visitas ao site, configure um cron real no servidor. Adicione ao crontab:', 'newsmast-curator'); ?>
+            </p>
+            <code style="display:block;padding:10px;background:#1e1e1e;color:#d4d4d4;border-radius:4px;font-size:12px;word-break:break-all;">*/5 * * * * wget -q -O /dev/null "<?php echo esc_url($cron_url); ?>"</code>
+            <p style="margin:8px 0 0;font-size:12px;color:#999;">
+                <?php _e('Ações disponíveis: &action=all (padrão), &action=publications, &action=collect, &action=cleanup', 'newsmast-curator'); ?>
+            </p>
+        </div>
     </div>
 </div>
 
@@ -116,18 +138,43 @@ NC.loadLogs = function(level) {
             return;
         }
 
-        let html = '<table class="nc-table"><thead><tr><th>Data/Hora</th><th>Nível</th><th>Tipo</th><th>Mensagem</th></tr></thead><tbody>';
+        let html = '<table class="nc-table"><thead><tr><th>Data/Hora</th><th>Nível</th><th>Mensagem</th><th>Detalhes</th></tr></thead><tbody>';
         data.logs.forEach(log => {
             const date = new Date(log.created_at);
             const badgeClass = log.level === 'error' ? 'nc-badge-danger' :
                               log.level === 'warning' ? 'nc-badge-warning' :
                               log.level === 'success' ? 'nc-badge-success' : 'nc-badge-info';
 
+            let context = {};
+            try { context = typeof log.context === 'string' ? JSON.parse(log.context) : (log.context || {}); } catch(e) {}
+            let detailsHtml = '';
+            if (context.details) {
+                detailsHtml += '<div>' + NC.escapeHtml(context.details) + '</div>';
+            }
+            if (context.error) {
+                detailsHtml += '<div style="color:#dc3545;"><strong>Erro:</strong> ' + NC.escapeHtml(context.error) + '</div>';
+            }
+            if (context.mastodon_id) {
+                detailsHtml += '<div><strong>Mastodon ID:</strong> ' + NC.escapeHtml(context.mastodon_id) + '</div>';
+            }
+            if (context.mastodon_url) {
+                detailsHtml += '<div><a href="' + NC.escapeHtml(context.mastodon_url) + '" target="_blank">Ver no Mastodon</a></div>';
+            }
+            if (context.content_preview) {
+                detailsHtml += '<div style="color:#6C757D;font-size:12px;margin-top:4px;">"' + NC.escapeHtml(context.content_preview) + '"</div>';
+            }
+            if (context.media_count !== undefined) {
+                detailsHtml += '<div><strong>Mídia:</strong> ' + context.media_count + ' arquivo(s)</div>';
+            }
+            if (context.attempt) {
+                detailsHtml += '<div><strong>Tentativa:</strong> ' + context.attempt + '</div>';
+            }
+
             html += `<tr>
                 <td><small>${date.toLocaleString('pt-BR')}</small></td>
                 <td><span class="nc-badge ${badgeClass}">${log.level}</span></td>
-                <td>${log.type}</td>
-                <td>${log.message}</td>
+                <td>${NC.escapeHtml(log.message)}${log.related_id ? '<br><small style="color:#999;">ID: ' + log.related_id + '</small>' : ''}</td>
+                <td style="font-size:12px;">${detailsHtml || '<span style="color:#ccc;">—</span>'}</td>
             </tr>`;
         });
         html += '</tbody></table>';
