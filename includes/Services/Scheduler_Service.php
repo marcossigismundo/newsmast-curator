@@ -188,7 +188,7 @@ class Scheduler_Service {
             }
 
             $ext = pathinfo(wp_parse_url($image_url, PHP_URL_PATH), PATHINFO_EXTENSION) ?: 'jpg';
-            $tmp_file = wp_tempnam('nc_media_.' . $ext);
+            $tmp_file = tempnam(get_temp_dir(), 'nc_media_') . '.' . $ext;
             file_put_contents($tmp_file, $body);
 
             $this->logger->info('Imagem baixada, enviando ao Mastodon', [
