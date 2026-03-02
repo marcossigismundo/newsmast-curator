@@ -35,6 +35,15 @@ class Scheduler_Service {
         }
 
         try {
+            // Recover publications stuck in 'processing' due to crashes
+            $recovered = $this->pub_repo->recover_stuck_processing(5);
+            if ($recovered > 0) {
+                $this->logger->warning('Publicações travadas recuperadas', [
+                    'related_type' => 'scheduler',
+                    'details' => sprintf('%d publicação(ões) estavam travadas em "processing" e foram reagendadas', $recovered),
+                ]);
+            }
+
             $publications = $this->pub_repo->find_pending_for_processing(5);
 
             $this->logger->info('Scheduler executando', [

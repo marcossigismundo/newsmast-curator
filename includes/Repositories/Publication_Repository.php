@@ -45,6 +45,27 @@ class Publication_Repository extends Base_Repository {
     }
 
     /**
+     * Recupera publicações travadas em 'processing' por mais de X minutos
+     *
+     * @param int $minutes_threshold
+     * @return int Número de publicações recuperadas
+     */
+    public function recover_stuck_processing($minutes_threshold = 5) {
+        $threshold_time = date('Y-m-d H:i:s', time() - ($minutes_threshold * 60));
+
+        return $this->wpdb->query(
+            $this->wpdb->prepare(
+                "UPDATE {$this->table_name}
+                 SET status = 'scheduled', scheduled_for = %s, updated_at = %s
+                 WHERE status = 'processing' AND updated_at < %s",
+                current_time('mysql'),
+                current_time('mysql'),
+                $threshold_time
+            )
+        );
+    }
+
+    /**
      * Busca publicações por status
      *
      * @param string $status
