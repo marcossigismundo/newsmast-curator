@@ -26,6 +26,8 @@ class Settings_Controller extends Base_REST_Controller {
             'post_template' => get_option('nc_post_template', ''),
             'default_hashtags' => get_option('nc_default_hashtags', ''),
             'collection_frequency' => get_option('nc_collection_frequency', 'hourly'),
+            'api_enabled' => get_option('nc_api_enabled', '0'),
+            'api_key' => get_option('nc_api_key', '') ? '********' : '',
         ]);
     }
 
@@ -41,6 +43,10 @@ class Settings_Controller extends Base_REST_Controller {
         }
         if (isset($request['post_template'])) update_option('nc_post_template', sanitize_textarea_field($request['post_template']));
         if (isset($request['default_hashtags'])) update_option('nc_default_hashtags', sanitize_text_field($request['default_hashtags']));
+        if (isset($request['api_enabled'])) update_option('nc_api_enabled', $request['api_enabled'] ? '1' : '0');
+        if (isset($request['api_key']) && !empty($request['api_key']) && $request['api_key'] !== '********') {
+            update_option('nc_api_key', sanitize_text_field($request['api_key']));
+        }
 
         return $this->prepare_response(['success' => true]);
     }

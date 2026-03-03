@@ -691,13 +691,18 @@
 
         saveSettings: function() {
             var token = $('#nc-setting-token').val();
+            var apiKey = $('#nc-setting-api-key').val();
             var data = {
                 mastodon_instance: $('#nc-setting-instance').val(),
                 post_template: $('#nc-setting-template').val(),
-                default_hashtags: $('#nc-setting-hashtags').val()
+                default_hashtags: $('#nc-setting-hashtags').val(),
+                api_enabled: $('#nc-setting-api-enabled').is(':checked') ? 1 : 0
             };
             if (token && token !== '********') {
                 data.mastodon_token = token;
+            }
+            if (apiKey && apiKey !== '********') {
+                data.api_key = apiKey;
             }
 
             wp.apiFetch({
@@ -706,8 +711,43 @@
                 data: data
             }).then(function() {
                 NC.showNotice('success', NC.__('settings_saved', 'Configurações salvas!'));
+                // Mask API key after save
+                if (apiKey && apiKey !== '********' && apiKey.length > 0) {
+                    $('#nc-setting-api-key').val('********');
+                }
             }).catch(function(error) {
                 NC.showNotice('error', NC.__('save_error', 'Erro ao salvar: ') + (error.message || ''));
+            });
+        },
+
+        generateApiKey: function() {
+            var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+            var key = '';
+            var array = new Uint8Array(40);
+            crypto.getRandomValues(array);
+            for (var i = 0; i < 40; i++) {
+                key += chars.charAt(array[i] % chars.length);
+            }
+            $('#nc-setting-api-key').val(key);
+            NC.showNotice('info', NC.__('api_key_generated', 'Chave gerada! Salve as configurações e copie a chave antes de sair.'));
+        },
+
+        copyApiKey: function() {
+            var key = $('#nc-setting-api-key').val();
+            if (!key || key === '********') {
+                NC.showNotice('warning', NC.__('api_key_masked', 'A chave está mascarada. Gere uma nova chave para copiá-la.'));
+                return;
+            }
+            navigator.clipboard.writeText(key).then(function() {
+                NC.showNotice('success', NC.__('api_key_copied', 'Chave copiada!'));
+            }).catch(function() {
+                // Fallback
+                var $temp = $('<input>');
+                $('body').append($temp);
+                $temp.val(key).select();
+                document.execCommand('copy');
+                $temp.remove();
+                NC.showNotice('success', NC.__('api_key_copied', 'Chave copiada!'));
             });
         },
 

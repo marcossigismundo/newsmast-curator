@@ -183,6 +183,10 @@ class Plugin {
             // Collections Controller
             $collections = new \NewsmastCurator\API\Collections_Controller($this->database);
             $collections->register_routes();
+
+            // Public API Controller
+            $public_api = new \NewsmastCurator\API\Public_API_Controller($this->database);
+            $public_api->register_routes();
         });
     }
 
