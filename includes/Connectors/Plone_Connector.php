@@ -13,6 +13,7 @@ namespace NewsmastCurator\Connectors;
 class Plone_Connector implements Connector_Interface {
     private $url;
     private $config;
+    private $last_error = '';
 
     public function connect($config) {
         $this->config = $config;
@@ -29,25 +30,50 @@ class Plone_Connector implements Connector_Interface {
     }
 
     public function collect() {
+        $this->last_error = '';
+
         $response = wp_remote_get($this->url, [
             'timeout' => 30,
+            'sslverify' => true,
+            'user-agent' => 'Mozilla/5.0 (compatible; NewsmastCurator/1.0; +WordPress)',
             'headers' => [
-                'Accept' => 'text/html',
-                'Accept-Language' => 'pt-BR,pt;q=0.9',
+                'Accept' => 'text/html,application/xhtml+xml',
+                'Accept-Language' => 'pt-BR,pt;q=0.9,en;q=0.5',
             ],
         ]);
 
         if (is_wp_error($response)) {
+            $this->last_error = 'HTTP request failed: ' . $response->get_error_message();
+            error_log('[NC Plone] ' . $this->last_error . ' | URL: ' . $this->url);
             return [];
         }
 
         $code = wp_remote_retrieve_response_code($response);
         if ($code !== 200) {
+            $this->last_error = "HTTP {$code} response";
+            error_log('[NC Plone] ' . $this->last_error . ' | URL: ' . $this->url);
             return [];
         }
 
         $html = wp_remote_retrieve_body($response);
-        return $this->parse_html($html);
+        if (empty($html)) {
+            $this->last_error = 'Empty response body';
+            error_log('[NC Plone] ' . $this->last_error . ' | URL: ' . $this->url);
+            return [];
+        }
+
+        $items = $this->parse_html($html);
+
+        if (empty($items)) {
+            $this->last_error = 'No items found in HTML (check CSS selectors)';
+            error_log('[NC Plone] ' . $this->last_error . ' | URL: ' . $this->url . ' | HTML length: ' . strlen($html));
+        }
+
+        return $items;
+    }
+
+    public function get_last_error() {
+        return $this->last_error;
     }
 
     /**
@@ -303,9 +329,12 @@ class Plone_Connector implements Connector_Interface {
 
     public function test_connection() {
         $items = $this->collect();
+        $message = count($items) > 0
+            ? sprintf(__('%d itens encontrados', 'newsmast-curator'), count($items))
+            : ($this->last_error ?: __('Nenhum item encontrado', 'newsmast-curator'));
         return [
             'success' => count($items) > 0,
-            'message' => sprintf(__('%d itens encontrados', 'newsmast-curator'), count($items)),
+            'message' => $message,
             'sample_items' => array_slice($items, 0, 3),
         ];
     }

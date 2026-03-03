@@ -4,6 +4,7 @@ namespace NewsmastCurator\Connectors;
 class WordPress_Connector implements Connector_Interface {
     private $api_url;
     private $config;
+    private $last_error = '';
 
     public function connect($config) {
         $this->config = $config;
@@ -18,15 +19,35 @@ class WordPress_Connector implements Connector_Interface {
     }
 
     public function collect() {
-        $args = ['timeout' => 30];
+        $this->last_error = '';
         $per_page = $this->config['per_page'] ?? 20;
         $url = add_query_arg(['per_page' => $per_page], $this->api_url);
 
-        $response = wp_remote_get($url, $args);
-        if (is_wp_error($response)) return [];
+        $response = wp_remote_get($url, [
+            'timeout' => 30,
+            'sslverify' => true,
+            'user-agent' => 'Mozilla/5.0 (compatible; NewsmastCurator/1.0; +WordPress)',
+        ]);
+
+        if (is_wp_error($response)) {
+            $this->last_error = 'HTTP request failed: ' . $response->get_error_message();
+            error_log('[NC WordPress] ' . $this->last_error . ' | URL: ' . $url);
+            return [];
+        }
+
+        $code = wp_remote_retrieve_response_code($response);
+        if ($code !== 200) {
+            $this->last_error = "HTTP {$code} response";
+            error_log('[NC WordPress] ' . $this->last_error . ' | URL: ' . $url);
+            return [];
+        }
 
         $posts = json_decode(wp_remote_retrieve_body($response), true);
-        if (!is_array($posts)) return [];
+        if (!is_array($posts)) {
+            $this->last_error = 'Invalid JSON response';
+            error_log('[NC WordPress] ' . $this->last_error . ' | URL: ' . $url);
+            return [];
+        }
 
         $items = [];
         foreach ($posts as $post) {
@@ -46,6 +67,10 @@ class WordPress_Connector implements Connector_Interface {
         return $items;
     }
 
+    public function get_last_error() {
+        return $this->last_error;
+    }
+
     public function get_config_fields() {
         return [
             'api_endpoint' => [
@@ -63,9 +88,12 @@ class WordPress_Connector implements Connector_Interface {
 
     public function test_connection() {
         $items = $this->collect();
+        $message = count($items) > 0
+            ? sprintf(__('%d posts encontrados', 'newsmast-curator'), count($items))
+            : ($this->last_error ?: __('Nenhum post encontrado', 'newsmast-curator'));
         return [
             'success' => count($items) > 0,
-            'message' => sprintf(__('%d posts encontrados', 'newsmast-curator'), count($items)),
+            'message' => $message,
             'sample_items' => array_slice($items, 0, 3),
         ];
     }

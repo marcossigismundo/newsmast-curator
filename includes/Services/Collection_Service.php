@@ -43,10 +43,31 @@ class Collection_Service {
         $connector = Connector_Registry::get($source->get_connector_type());
         if (!$connector) return false;
 
-        $connector->connect(array_merge(['url' => $source->get_url()], $source->get_config()));
+        $config = array_merge(['url' => $source->get_url()], $source->get_config());
+        $connector->connect($config);
+
+        $this->logger->info('Iniciando coleta', [
+            'related_type' => 'source',
+            'related_id' => $source_id,
+            'details' => sprintf('Conector: %s | URL: %s', $source->get_connector_type(), $source->get_url()),
+        ]);
+
         $collected_items = $connector->collect();
 
+        // Logar erro do conector se não coletou nada
+        if (empty($collected_items)) {
+            $error_detail = method_exists($connector, 'get_last_error') ? $connector->get_last_error() : '';
+            $this->logger->warning('Coleta retornou 0 itens', [
+                'related_type' => 'source',
+                'related_id' => $source_id,
+                'details' => $error_detail ?: 'Nenhum item retornado pelo conector',
+            ]);
+            $this->source_repo->update_last_collection($source_id, current_time('mysql'));
+            return 0;
+        }
+
         $count = 0;
+        $duplicates = 0;
         foreach ($collected_items as $item_data) {
             $item = new Item();
             $item->set_source_id($source_id);
@@ -66,6 +87,8 @@ class Collection_Service {
             if (!$existing) {
                 $this->item_repo->insert($item);
                 $count++;
+            } else {
+                $duplicates++;
             }
         }
 
@@ -73,7 +96,7 @@ class Collection_Service {
         $this->logger->info("Coletados {$count} novos itens", [
             'related_type' => 'source',
             'related_id' => $source_id,
-            'count' => $count,
+            'details' => sprintf('Total do conector: %d | Novos: %d | Duplicados: %d', count($collected_items), $count, $duplicates),
         ]);
 
         return $count;
