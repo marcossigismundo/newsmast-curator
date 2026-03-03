@@ -314,8 +314,12 @@ NC.openCollectionDetailModal = function(id) {
             html += '<div class="nc-collection-item-row">';
             html += '<span class="nc-collection-item-order">' + (idx + 1) + '</span>';
             html += '<span class="nc-collection-item-title">' + NC.escapeHtml(item.title || NC.__('untitled', 'Sem título')) + '</span>';
+            html += '<div class="nc-collection-item-actions">';
+            html += '<button class="nc-button nc-button-primary nc-button-sm" onclick="NC.scheduleCollectionItem(' + item.id + ')" title="' + NC.__('schedule', 'Agendar') + '">' +
+                '<span class="dashicons dashicons-calendar-alt"></span></button>';
             html += '<button class="nc-collection-item-remove" onclick="NC.removeItemFromCollection(' + id + ', ' + item.id + ')" title="' + NC.__('remove', 'Remover') + '">' +
                 '<span class="dashicons dashicons-no-alt"></span></button>';
+            html += '</div>';
             html += '</div>';
         });
         html += '</div>';
@@ -491,6 +495,13 @@ NC.submitScheduleCollection = function() {
     }).catch(function(e) {
         NC.showNotice('error', NC.__('schedule_error', 'Erro ao agendar: ') + (e.message || ''));
     });
+};
+
+// ========== Schedule Individual Collection Item ==========
+
+NC.scheduleCollectionItem = function(itemId) {
+    NC.closeModal('nc-collection-detail-modal');
+    NC.openScheduleModal(itemId);
 };
 
 // ========== Delete Collection ==========
