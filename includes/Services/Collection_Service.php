@@ -38,10 +38,28 @@ class Collection_Service {
 
     public function collect_from_source($source_id) {
         $source = $this->source_repo->find($source_id);
-        if (!$source) return false;
+        if (!$source) {
+            $this->logger->error('Fonte não encontrada', [
+                'related_type' => 'source',
+                'related_id' => $source_id,
+                'details' => "source_id={$source_id} não existe no banco de dados",
+            ]);
+            error_log("[NC Collection] Source not found: {$source_id}");
+            return false;
+        }
 
-        $connector = Connector_Registry::get($source->get_connector_type());
-        if (!$connector) return false;
+        $connector_type = $source->get_connector_type();
+        $connector = Connector_Registry::get($connector_type);
+        if (!$connector) {
+            $registered = implode(', ', Connector_Registry::get_all_types());
+            $this->logger->error('Conector não encontrado', [
+                'related_type' => 'source',
+                'related_id' => $source_id,
+                'details' => "Tipo '{$connector_type}' não registrado. Disponíveis: {$registered}",
+            ]);
+            error_log("[NC Collection] Connector '{$connector_type}' not found for source {$source_id}. Registered: {$registered}");
+            return false;
+        }
 
         $config = array_merge(['url' => $source->get_url()], $source->get_config());
         $connector->connect($config);

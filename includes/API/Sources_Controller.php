@@ -75,8 +75,22 @@ class Sources_Controller extends Base_REST_Controller {
     }
 
     public function collect($request) {
-        $service = new \NewsmastCurator\Services\Collection_Service($this->database);
-        $count = $service->collect_from_source($request['id']);
-        return $this->prepare_response(['success' => true, 'items_collected' => $count]);
+        try {
+            $service = new \NewsmastCurator\Services\Collection_Service($this->database);
+            $count = $service->collect_from_source($request['id']);
+
+            if ($count === false) {
+                return $this->prepare_error(
+                    __('Falha na coleta. Verifique os logs para detalhes.', 'newsmast-curator'),
+                    'collection_failed',
+                    500
+                );
+            }
+
+            return $this->prepare_response(['success' => true, 'items_collected' => (int) $count]);
+        } catch (\Exception $e) {
+            error_log('[NC Collection] Exception: ' . $e->getMessage());
+            return $this->prepare_error($e->getMessage(), 'collection_error', 500);
+        }
     }
 }
