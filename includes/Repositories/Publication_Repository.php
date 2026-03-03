@@ -51,7 +51,7 @@ class Publication_Repository extends Base_Repository {
      * @return int Número de publicações recuperadas
      */
     public function recover_stuck_processing($minutes_threshold = 5) {
-        $threshold_time = date('Y-m-d H:i:s', time() - ($minutes_threshold * 60));
+        $threshold_time = date('Y-m-d H:i:s', current_time('timestamp') - ($minutes_threshold * 60));
 
         return $this->wpdb->query(
             $this->wpdb->prepare(
@@ -63,6 +63,21 @@ class Publication_Repository extends Base_Repository {
                 $threshold_time
             )
         );
+    }
+
+    /**
+     * Conta publicações por status para diagnóstico
+     *
+     * @return array
+     */
+    public function count_by_status() {
+        $sql = "SELECT status, COUNT(*) as cnt FROM {$this->table_name} GROUP BY status";
+        $rows = $this->wpdb->get_results($sql);
+        $result = [];
+        foreach ($rows as $row) {
+            $result[$row->status] = (int) $row->cnt;
+        }
+        return $result;
     }
 
     /**

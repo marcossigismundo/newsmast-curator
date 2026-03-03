@@ -114,10 +114,19 @@ class Publications_Controller extends Base_REST_Controller {
     }
 
     public function process_now($request) {
+        $repo = new Publication_Repository($this->database);
+
+        // Log pre-processing state for diagnostics
+        $logger = new \NewsmastCurator\Services\Logger_Service($this->database);
+        $status_counts = $repo->count_by_status();
+        $logger->info('process_now: Estado antes do processamento', [
+            'related_type' => 'scheduler',
+            'details' => sprintf('Publicações por status: %s | Hora local: %s', wp_json_encode($status_counts), current_time('mysql')),
+        ]);
+
         $scheduler = new \NewsmastCurator\Services\Scheduler_Service($this->database);
         $scheduler->process_scheduled_publications();
 
-        $repo = new Publication_Repository($this->database);
         $stats = $repo->get_stats();
 
         return $this->prepare_response([
