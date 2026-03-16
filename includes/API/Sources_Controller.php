@@ -42,6 +42,8 @@ class Sources_Controller extends Base_REST_Controller {
         $source->set_connector_type($request['connector_type']);
         $source->set_url($request['url']);
         $source->set_config($request['config'] ?? []);
+        if (isset($request['auto_collect'])) $source->set_auto_collect($request['auto_collect']);
+        if (isset($request['collect_interval'])) $source->set_collect_interval($request['collect_interval']);
 
         $validation = $source->validate();
         if ($validation !== true) {
@@ -63,6 +65,8 @@ class Sources_Controller extends Base_REST_Controller {
         if (isset($request['url'])) $source->set_url($request['url']);
         if (isset($request['config'])) $source->set_config($request['config']);
         if (isset($request['status'])) $source->set_status($request['status']);
+        if (isset($request['auto_collect'])) $source->set_auto_collect($request['auto_collect']);
+        if (isset($request['collect_interval'])) $source->set_collect_interval($request['collect_interval']);
 
         $repo->update($source);
         return $this->prepare_response($source->to_api_response());

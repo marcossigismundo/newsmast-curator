@@ -3,7 +3,7 @@
  * Plugin Name: Newsmast Curator
  * Plugin URI: https://github.com/ibram/newsmast-curator
  * Description: Plugin para curadoria de conteúdo de múltiplas fontes e publicação automatizada no Newsmast/Mastodon
- * Version: 1.1.0
+ * Version: 1.2.0
  * Requires at least: 5.8
  * Requires PHP: 7.4
  * Author: IBRAM
@@ -20,7 +20,7 @@ if (!defined('WPINC')) {
 }
 
 // Definir constantes do plugin
-define('NC_VERSION', '1.1.0');
+define('NC_VERSION', '1.2.0');
 define('NC_PLUGIN_FILE', __FILE__);
 define('NC_PLUGIN_BASENAME', plugin_basename(__FILE__));
 define('NC_PLUGIN_DIR', plugin_dir_path(__FILE__));

@@ -136,10 +136,14 @@ NC.renderItemsGrid = function(items, curated) {
             ' data-formatted="' + encodeURIComponent(item.formatted_content || '') + '">' +
             '<span style="font-size:12px;color:#6C757D;">' + NC.__('select', 'Selecionar') + '</span></label>';
 
-        html += '<h3 class="nc-item-title">' + NC.escapeHtml(item.title) + '</h3>' +
+        var collectionBadge = item.collection_type === 'auto'
+            ? '<span class="nc-badge nc-badge-info" style="font-size:9px;vertical-align:middle;" title="Coletado automaticamente em ' + new Date(item.collected_at).toLocaleString('pt-BR') + '"><span class="dashicons dashicons-clock" style="font-size:11px;width:11px;height:11px;vertical-align:middle;"></span> Auto</span> '
+            : '';
+
+        html += '<h3 class="nc-item-title">' + collectionBadge + NC.escapeHtml(item.title) + '</h3>' +
             '<div class="nc-item-meta">' +
                 '<span><span class="dashicons dashicons-calendar" style="font-size:14px;"></span> ' +
-                new Date(item.collected_at).toLocaleDateString('pt-BR') + '</span>';
+                new Date(item.collected_at).toLocaleString('pt-BR') + '</span>';
         if (item.author) {
             html += '<span><span class="dashicons dashicons-admin-users" style="font-size:14px;"></span> ' + NC.escapeHtml(item.author) + '</span>';
         }
@@ -183,7 +187,10 @@ NC.renderItemsList = function(items, curated) {
         html += '</td>';
         var title = item.title.length > 80 ? NC.escapeHtml(item.title.substring(0, 80)) + '...' : NC.escapeHtml(item.title);
         var excerpt = item.preview_text ? (item.preview_text.length > 100 ? NC.escapeHtml(item.preview_text.substring(0, 100)) + '...' : NC.escapeHtml(item.preview_text)) : '';
-        html += '<td><strong class="nc-item-title">' + title + '</strong>';
+        var listBadge = item.collection_type === 'auto'
+            ? '<span class="nc-badge nc-badge-info" style="font-size:9px;margin-left:6px;" title="Coleta automática"><span class="dashicons dashicons-clock" style="font-size:11px;width:11px;height:11px;vertical-align:middle;"></span> Auto</span>'
+            : '';
+        html += '<td><strong class="nc-item-title">' + title + listBadge + '</strong>';
         if (excerpt) {
             html += '<div class="nc-list-excerpt">' + excerpt + '</div>';
         }

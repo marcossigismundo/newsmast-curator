@@ -66,6 +66,20 @@ class Source {
     private $last_error = null;
 
     /**
+     * Coleta automática habilitada
+     *
+     * @var int
+     */
+    private $auto_collect = 0;
+
+    /**
+     * Intervalo de coleta automática
+     *
+     * @var string
+     */
+    private $collect_interval = 'hourly';
+
+    /**
      * Data de criação
      *
      * @var string
@@ -123,6 +137,14 @@ class Source {
         return $this->last_error;
     }
 
+    public function is_auto_collect() {
+        return (bool) $this->auto_collect;
+    }
+
+    public function get_collect_interval() {
+        return $this->collect_interval;
+    }
+
     public function get_created_at() {
         return $this->created_at;
     }
@@ -168,6 +190,15 @@ class Source {
         $this->last_error = $error ? sanitize_textarea_field($error) : null;
     }
 
+    public function set_auto_collect($auto_collect) {
+        $this->auto_collect = (int) (bool) $auto_collect;
+    }
+
+    public function set_collect_interval($interval) {
+        $valid = ['every_15_minutes', 'every_30_minutes', 'hourly', 'every_6_hours', 'every_12_hours', 'daily'];
+        $this->collect_interval = in_array($interval, $valid) ? $interval : 'hourly';
+    }
+
     public function set_created_at($datetime) {
         $this->created_at = $datetime;
     }
@@ -193,6 +224,8 @@ class Source {
         $source->set_status($row->status ?? 'active');
         $source->set_last_collection($row->last_collection ?? null);
         $source->set_last_error($row->last_error ?? null);
+        $source->set_auto_collect($row->auto_collect ?? 0);
+        $source->set_collect_interval($row->collect_interval ?? 'hourly');
         $source->set_created_at($row->created_at ?? current_time('mysql'));
         $source->set_updated_at($row->updated_at ?? current_time('mysql'));
 
@@ -213,6 +246,8 @@ class Source {
             'status' => $this->status,
             'last_collection' => $this->last_collection,
             'last_error' => $this->last_error,
+            'auto_collect' => $this->auto_collect,
+            'collect_interval' => $this->collect_interval,
             'updated_at' => current_time('mysql'),
         ];
 
@@ -239,6 +274,8 @@ class Source {
             'status' => $this->status,
             'last_collection' => $this->last_collection,
             'last_error' => $this->last_error,
+            'auto_collect' => (bool) $this->auto_collect,
+            'collect_interval' => $this->collect_interval,
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
         ];

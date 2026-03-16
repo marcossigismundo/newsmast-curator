@@ -20,12 +20,15 @@ class Collection_Service {
         $this->logger = new Logger_Service($database);
     }
 
+    /**
+     * Coleta manual de todas as fontes ativas
+     */
     public function collect_all_sources() {
         $sources = $this->source_repo->find_active();
 
         foreach ($sources as $source) {
             try {
-                $this->collect_from_source($source->get_id());
+                $this->collect_from_source($source->get_id(), 'manual');
             } catch (\Exception $e) {
                 $this->logger->error('Erro ao coletar de fonte', [
                     'related_type' => 'source',
@@ -36,7 +39,53 @@ class Collection_Service {
         }
     }
 
-    public function collect_from_source($source_id) {
+    /**
+     * Coleta automática: apenas fontes com auto_collect habilitado e no horário
+     */
+    public function auto_collect_due_sources() {
+        $sources = $this->source_repo->find_due_for_auto_collect();
+
+        if (empty($sources)) {
+            return;
+        }
+
+        $this->logger->info('Coleta automática iniciada', [
+            'related_type' => 'scheduler',
+            'details' => sprintf('%d fonte(s) programada(s) para coleta', count($sources)),
+        ]);
+
+        $total_new = 0;
+        foreach ($sources as $source) {
+            try {
+                $count = $this->collect_from_source($source->get_id(), 'auto');
+                if ($count !== false) {
+                    $total_new += $count;
+                }
+            } catch (\Exception $e) {
+                $this->logger->error('Erro na coleta automática', [
+                    'related_type' => 'source',
+                    'related_id' => $source->get_id(),
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        if ($total_new > 0) {
+            $this->logger->success('Coleta automática concluída', [
+                'related_type' => 'scheduler',
+                'details' => sprintf('%d novo(s) item(ns) coletado(s) de %d fonte(s)', $total_new, count($sources)),
+            ]);
+        }
+    }
+
+    /**
+     * Coleta de uma fonte específica
+     *
+     * @param int $source_id
+     * @param string $collection_type 'manual' ou 'auto'
+     * @return int|false Número de itens coletados ou false em caso de erro
+     */
+    public function collect_from_source($source_id, $collection_type = 'manual') {
         $source = $this->source_repo->find($source_id);
         if (!$source) {
             $this->logger->error('Fonte não encontrada', [
@@ -64,10 +113,11 @@ class Collection_Service {
         $config = array_merge(['url' => $source->get_url()], $source->get_config());
         $connector->connect($config);
 
-        $this->logger->info('Iniciando coleta', [
+        $type_label = $collection_type === 'auto' ? 'automática' : 'manual';
+        $this->logger->info("Iniciando coleta {$type_label}", [
             'related_type' => 'source',
             'related_id' => $source_id,
-            'details' => sprintf('Conector: %s | URL: %s', $source->get_connector_type(), $source->get_url()),
+            'details' => sprintf('Conector: %s | URL: %s | Tipo: %s', $source->get_connector_type(), $source->get_url(), $type_label),
         ]);
 
         $collected_items = $connector->collect();
@@ -98,6 +148,7 @@ class Collection_Service {
             $item->set_author($item_data['author'] ?? null);
             $item->set_published_date($item_data['published_date'] ?? null);
             $item->set_metadata($item_data['metadata'] ?? []);
+            $item->set_collection_type($collection_type);
             $item->generate_hash();
 
             // Verifica duplicata
@@ -111,10 +162,10 @@ class Collection_Service {
         }
 
         $this->source_repo->update_last_collection($source_id, current_time('mysql'));
-        $this->logger->info("Coletados {$count} novos itens", [
+        $this->logger->info("Coletados {$count} novos itens ({$type_label})", [
             'related_type' => 'source',
             'related_id' => $source_id,
-            'details' => sprintf('Total do conector: %d | Novos: %d | Duplicados: %d', count($collected_items), $count, $duplicates),
+            'details' => sprintf('Total do conector: %d | Novos: %d | Duplicados: %d | Tipo: %s', count($collected_items), $count, $duplicates, $type_label),
         ]);
 
         return $count;

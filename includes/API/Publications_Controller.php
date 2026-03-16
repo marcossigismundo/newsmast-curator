@@ -42,6 +42,8 @@ class Publications_Controller extends Base_REST_Controller {
         $item_id = isset($request['item_id']) ? (int) $request['item_id'] : 0;
         $scheduled_for = isset($request['scheduled_for']) ? sanitize_text_field($request['scheduled_for']) : '';
         $content = isset($request['content']) ? sanitize_textarea_field($request['content']) : '';
+        $mastodon_account_ids = isset($request['mastodon_account_ids']) ? array_map('intval', (array) $request['mastodon_account_ids']) : [];
+        $mastodon_account_id = isset($request['mastodon_account_id']) ? (int) $request['mastodon_account_id'] : 0;
 
         if (empty($item_id)) {
             return $this->prepare_error(__('Item é obrigatório', 'newsmast-curator'), 'validation_error', 400);
@@ -71,13 +73,39 @@ class Publications_Controller extends Base_REST_Controller {
         // Normalize datetime to MySQL format (Y-m-d H:i:s) for consistent DB comparison
         $normalized_datetime = date('Y-m-d H:i:s', $timestamp);
 
+        $repo = new Publication_Repository($this->database);
+
+        // Se múltiplas contas selecionadas, cria uma publicação por conta
+        if (!empty($mastodon_account_ids)) {
+            $created = [];
+            foreach ($mastodon_account_ids as $account_id) {
+                $pub = new Publication();
+                $pub->set_item_id($item_id);
+                $pub->set_mastodon_account_id($account_id);
+                $pub->set_scheduled_for($normalized_datetime);
+                $pub->set_content($content);
+                $pub->set_published_by(get_current_user_id());
+
+                $id = $repo->insert($pub);
+                if ($id) {
+                    $created[] = $pub->to_api_response();
+                }
+            }
+            return !empty($created)
+                ? $this->prepare_response($created, 201)
+                : $this->prepare_error(__('Falha ao criar publicações', 'newsmast-curator'));
+        }
+
+        // Publicação única (conta única ou padrão)
         $pub = new Publication();
         $pub->set_item_id($item_id);
+        if ($mastodon_account_id > 0) {
+            $pub->set_mastodon_account_id($mastodon_account_id);
+        }
         $pub->set_scheduled_for($normalized_datetime);
         $pub->set_content($content);
         $pub->set_published_by(get_current_user_id());
 
-        $repo = new Publication_Repository($this->database);
         $id = $repo->insert($pub);
 
         return $id ? $this->prepare_response($pub->to_api_response(), 201) : $this->prepare_error(__('Falha ao criar publicação', 'newsmast-curator'));

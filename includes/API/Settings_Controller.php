@@ -13,6 +13,10 @@ class Settings_Controller extends Base_REST_Controller {
         register_rest_route($this->namespace, '/' . $this->rest_base . '/test-mastodon', [
             ['methods' => 'POST', 'callback' => [$this, 'test_mastodon'], 'permission_callback' => [$this, 'check_settings_permission']],
         ]);
+
+        register_rest_route($this->namespace, '/' . $this->rest_base . '/migrate-mastodon', [
+            ['methods' => 'POST', 'callback' => [$this, 'migrate_legacy_mastodon'], 'permission_callback' => [$this, 'check_settings_permission']],
+        ]);
     }
 
     public function check_settings_permission($request) {
@@ -28,6 +32,7 @@ class Settings_Controller extends Base_REST_Controller {
             'collection_frequency' => get_option('nc_collection_frequency', 'hourly'),
             'api_enabled' => get_option('nc_api_enabled', '0'),
             'api_key' => get_option('nc_api_key', '') ? '********' : '',
+            'has_legacy_mastodon' => !empty(get_option('nc_mastodon_instance', '')) && !empty(get_option('nc_mastodon_token', '')),
         ]);
     }
 
@@ -55,5 +60,46 @@ class Settings_Controller extends Base_REST_Controller {
         $service = new \NewsmastCurator\Services\Mastodon_Service();
         $result = $service->validate_credentials();
         return $this->prepare_response($result);
+    }
+
+    /**
+     * Migra configuração legada do Mastodon para uma conta na nova tabela
+     */
+    public function migrate_legacy_mastodon($request) {
+        $instance = get_option('nc_mastodon_instance', '');
+        $token = get_option('nc_mastodon_token', '');
+
+        if (empty($instance) || empty($token)) {
+            return $this->prepare_error(__('Nenhuma configuração legada encontrada', 'newsmast-curator'), 'no_legacy', 400);
+        }
+
+        $account = new \NewsmastCurator\Models\Mastodon_Account();
+        $account->set_name($request['name'] ?? __('Conta Principal', 'newsmast-curator'));
+        $account->set_instance_url($instance);
+        $account->set_access_token($token);
+        $account->set_is_default(true);
+
+        // Testar conexão
+        $service = new \NewsmastCurator\Services\Mastodon_Service($account);
+        $test = $service->validate_credentials();
+        if ($test['success']) {
+            $account->set_username($test['account']['username'] ?? '');
+        }
+
+        $repo = new \NewsmastCurator\Repositories\Mastodon_Account_Repository($this->database);
+
+        // Remove padrão das outras
+        $repo->set_default(0);
+
+        $id = $repo->insert($account);
+        if (!$id) {
+            return $this->prepare_error(__('Falha ao migrar', 'newsmast-curator'));
+        }
+
+        return $this->prepare_response([
+            'success' => true,
+            'account' => $account->to_api_response(),
+            'message' => __('Configuração migrada com sucesso! A conta foi criada como padrão.', 'newsmast-curator'),
+        ]);
     }
 }

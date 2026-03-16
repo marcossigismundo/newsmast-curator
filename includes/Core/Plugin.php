@@ -173,7 +173,7 @@ class Plugin {
             $publications->register_routes();
 
             // Settings Controller
-            $settings = new \NewsmastCurator\API\Settings_Controller();
+            $settings = new \NewsmastCurator\API\Settings_Controller($this->database);
             $settings->register_routes();
 
             // Logs Controller
@@ -183,6 +183,10 @@ class Plugin {
             // Collections Controller
             $collections = new \NewsmastCurator\API\Collections_Controller($this->database);
             $collections->register_routes();
+
+            // Mastodon Accounts Controller
+            $mastodon_accounts = new \NewsmastCurator\API\Mastodon_Accounts_Controller($this->database);
+            $mastodon_accounts->register_routes();
 
             // Public API Controller
             $public_api = new \NewsmastCurator\API\Public_API_Controller($this->database);
@@ -196,10 +200,10 @@ class Plugin {
      * @return void
      */
     private function init_cron_hooks() {
-        // Hook de coleta de fontes
+        // Hook de coleta automática de fontes (verifica intervalos por fonte)
         add_action('nc_collect_sources', function() {
             $collection_service = new \NewsmastCurator\Services\Collection_Service($this->database);
-            $collection_service->collect_all_sources();
+            $collection_service->auto_collect_due_sources();
         });
 
         // Hook de processamento de publicações
@@ -263,8 +267,14 @@ class Plugin {
 
             if ($action === 'all' || $action === 'collect') {
                 $collection_service = new \NewsmastCurator\Services\Collection_Service($this->database);
+                $collection_service->auto_collect_due_sources();
+                $results[] = 'auto-collect checked';
+            }
+
+            if ($action === 'collect-all') {
+                $collection_service = new \NewsmastCurator\Services\Collection_Service($this->database);
                 $collection_service->collect_all_sources();
-                $results[] = 'sources collected';
+                $results[] = 'all sources collected';
             }
 
             if ($action === 'all' || $action === 'cleanup') {

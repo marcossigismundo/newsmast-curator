@@ -126,6 +126,33 @@
                 <div class="nc-form-group" id="nc-config-fields">
                     <!-- Campos dinâmicos de configuração serão inseridos aqui -->
                 </div>
+
+                <!-- Auto-Collect Configuration -->
+                <div id="nc-auto-collect-section" style="display:none;margin-top:20px;padding-top:20px;border-top:1px solid var(--nc-border, #dee2e6);">
+                    <h3 style="margin:0 0 15px;font-size:14px;color:var(--nc-accent);">
+                        <span class="dashicons dashicons-clock"></span>
+                        <?php _e('Coleta Automática', 'newsmast-curator'); ?>
+                    </h3>
+                    <div class="nc-form-group">
+                        <label class="nc-form-label" style="display:flex;align-items:center;gap:10px;">
+                            <input type="checkbox" id="nc-source-auto-collect" name="auto_collect">
+                            <?php _e('Habilitar coleta automática para esta fonte', 'newsmast-curator'); ?>
+                        </label>
+                        <span class="nc-form-help"><?php _e('Quando habilitado, o sistema coletará novos itens automaticamente no intervalo configurado.', 'newsmast-curator'); ?></span>
+                    </div>
+                    <div class="nc-form-group" id="nc-collect-interval-group" style="display:none;">
+                        <label class="nc-form-label"><?php _e('Intervalo de Coleta', 'newsmast-curator'); ?></label>
+                        <select id="nc-source-collect-interval" name="collect_interval" class="nc-form-control">
+                            <option value="every_15_minutes"><?php _e('A cada 15 minutos', 'newsmast-curator'); ?></option>
+                            <option value="every_30_minutes"><?php _e('A cada 30 minutos', 'newsmast-curator'); ?></option>
+                            <option value="hourly" selected><?php _e('A cada hora', 'newsmast-curator'); ?></option>
+                            <option value="every_6_hours"><?php _e('A cada 6 horas', 'newsmast-curator'); ?></option>
+                            <option value="every_12_hours"><?php _e('A cada 12 horas', 'newsmast-curator'); ?></option>
+                            <option value="daily"><?php _e('Diariamente', 'newsmast-curator'); ?></option>
+                        </select>
+                        <span class="nc-form-help"><?php _e('Com que frequência o sistema verificará novos itens nesta fonte.', 'newsmast-curator'); ?></span>
+                    </div>
+                </div>
             </form>
         </div>
         <div class="nc-modal-footer">
@@ -224,6 +251,11 @@
 jQuery(document).ready(function($) {
     NC.loadSources();
 
+    // Toggle auto-collect
+    $('#nc-source-auto-collect').on('change', function() {
+        $('#nc-collect-interval-group').toggle(this.checked);
+    });
+
     // Carregar campos dinâmicos e instruções ao mudar tipo
     $('#nc-source-type').on('change', function() {
         const type = $(this).val();
@@ -231,11 +263,13 @@ jQuery(document).ready(function($) {
             $('#nc-connector-instructions').html('');
             $('#nc-config-fields').html('');
             $('#nc-url-group').hide();
+            $('#nc-auto-collect-section').hide();
             return;
         }
 
-        // Mostrar campo de URL
+        // Mostrar campo de URL e seção auto-collect
         $('#nc-url-group').show();
+        $('#nc-auto-collect-section').show();
 
         let instructions = '';
         let fields = '';
@@ -414,7 +448,7 @@ NC.loadSources = function() {
             return;
         }
 
-        let html = '<table class="nc-table"><thead><tr><th>Nome</th><th>Tipo</th><th>URL</th><th>Status</th><th>Última Coleta</th><th>Ações</th></tr></thead><tbody>';
+        let html = '<table class="nc-table"><thead><tr><th>Nome</th><th>Tipo</th><th>URL</th><th>Status</th><th>Coleta Auto</th><th>Última Coleta</th><th>Ações</th></tr></thead><tbody>';
         sources.forEach(s => {
             const statusBadge = s.status === 'active' ? 'nc-badge-success' : s.status === 'error' ? 'nc-badge-danger' : 'nc-badge-warning';
             const statusLabel = s.status === 'active' ? 'Ativo' : s.status === 'error' ? 'Erro' : 'Inativo';
@@ -424,11 +458,20 @@ NC.loadSources = function() {
             const lastCollection = s.last_collection ? new Date(s.last_collection).toLocaleString('pt-BR') : 'Nunca';
             const urlDisplay = s.url.length > 40 ? s.url.substring(0, 40) + '...' : s.url;
 
+            const intervalLabels = {
+                'every_15_minutes': '15min', 'every_30_minutes': '30min', 'hourly': '1h',
+                'every_6_hours': '6h', 'every_12_hours': '12h', 'daily': '24h'
+            };
+            const autoCollectBadge = s.auto_collect
+                ? `<span class="nc-badge nc-badge-success" style="font-size:10px;" title="Coleta automática a cada ${intervalLabels[s.collect_interval] || s.collect_interval}"><span class="dashicons dashicons-clock" style="font-size:12px;width:12px;height:12px;vertical-align:middle;"></span> ${intervalLabels[s.collect_interval] || s.collect_interval}</span>`
+                : '<span class="nc-badge nc-badge-warning" style="font-size:10px;">Manual</span>';
+
             html += `<tr>
-                <td><strong>${s.name}</strong></td>
+                <td><strong>${NC.escapeHtml(s.name)}</strong></td>
                 <td><span class="nc-badge nc-badge-info" style="font-size:10px;">${typeLabel}</span></td>
-                <td><a href="${s.url}" target="_blank" style="color:var(--nc-accent);">${urlDisplay}</a></td>
+                <td><a href="${NC.escapeHtml(s.url)}" target="_blank" style="color:var(--nc-accent);">${NC.escapeHtml(urlDisplay)}</a></td>
                 <td><span class="nc-badge ${statusBadge}">${statusLabel}</span></td>
+                <td>${autoCollectBadge}</td>
                 <td><small>${lastCollection}</small></td>
                 <td class="nc-table-actions">
                     <button class="nc-button nc-button-secondary" onclick="NC.editSource(${s.id})" title="Editar esta fonte">
@@ -459,6 +502,9 @@ NC.showAddSourceModal = function() {
     jQuery('#nc-connector-instructions').html('');
     jQuery('#nc-config-fields').html('');
     jQuery('#nc-url-group').hide();
+    jQuery('#nc-auto-collect-section').hide();
+    jQuery('#nc-collect-interval-group').hide();
+    jQuery('#nc-source-auto-collect').prop('checked', false);
     NC.openModal('nc-source-modal');
 };
 
@@ -473,7 +519,9 @@ NC.saveSource = function() {
         name: jQuery('#nc-source-name').val(),
         connector_type: jQuery('#nc-source-type').val(),
         url: jQuery('#nc-source-url').val(),
-        config: {}
+        config: {},
+        auto_collect: jQuery('#nc-source-auto-collect').is(':checked') ? 1 : 0,
+        collect_interval: jQuery('#nc-source-collect-interval').val()
     };
 
     // Pegar campos de config
@@ -522,6 +570,11 @@ NC.editSource = function(id) {
                     }
                 });
             }
+
+            // Fill auto-collect fields
+            jQuery('#nc-source-auto-collect').prop('checked', source.auto_collect);
+            jQuery('#nc-source-collect-interval').val(source.collect_interval || 'hourly');
+            jQuery('#nc-collect-interval-group').toggle(!!source.auto_collect);
         }, 100);
 
         NC.openModal('nc-source-modal');

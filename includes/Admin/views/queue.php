@@ -41,7 +41,9 @@
 
 <script>
 jQuery(document).ready(function($) {
-    NC.loadPublications('scheduled');
+    NC._loadAccountsForSelector(function() {
+        NC.loadPublications('scheduled');
+    });
     NC.loadPublicationCounts();
 });
 
@@ -78,7 +80,7 @@ NC.loadPublications = function(status) {
         }
 
         var html = '<table class="nc-table"><thead><tr>' +
-            '<th>Data/Hora</th><th>Conteúdo</th><th>Status</th><th>Tentativas</th><th>Ações</th>' +
+            '<th>Data/Hora</th><th>Conta</th><th>Conteúdo</th><th>Status</th><th>Tentativas</th><th>Ações</th>' +
             '</tr></thead><tbody>';
 
         pubs.forEach(function(pub) {
@@ -94,8 +96,15 @@ NC.loadPublications = function(status) {
             var contentPreview = contentText.length > 80 ? contentText.substring(0, 80) + '...' : contentText;
             var contentAttr = contentText.replace(/"/g, '&quot;');
 
+            var accountName = '—';
+            if (pub.mastodon_account_id && NC._mastodonAccounts) {
+                var acct = NC._mastodonAccounts.find(function(a) { return a.id == pub.mastodon_account_id; });
+                if (acct) accountName = '<span class="dashicons dashicons-share-alt2" style="font-size:14px;width:14px;height:14px;vertical-align:middle;"></span> ' + acct.name;
+            }
+
             html += '<tr>' +
                 '<td>' + date.toLocaleString('pt-BR') + '</td>' +
+                '<td>' + accountName + '</td>' +
                 '<td title="' + contentAttr + '">' + contentPreview + '</td>' +
                 '<td><span class="nc-badge ' + badgeClass + '">' + statusLabel + '</span></td>' +
                 '<td>' + (pub.attempt_count || 0) + ' / 3</td>' +

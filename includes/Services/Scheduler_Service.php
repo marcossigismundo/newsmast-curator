@@ -5,18 +5,17 @@ use NewsmastCurator\Core\Database;
 use NewsmastCurator\Repositories\Publication_Repository;
 use NewsmastCurator\Repositories\Collection_Repository;
 use NewsmastCurator\Repositories\Item_Repository;
+use NewsmastCurator\Repositories\Mastodon_Account_Repository;
 
 class Scheduler_Service {
     private $database;
     private $pub_repo;
-    private $mastodon_service;
     private $logger;
     private $lock_key = 'nc_scheduler_lock';
 
     public function __construct(Database $database) {
         $this->database = $database;
         $this->pub_repo = new Publication_Repository($database);
-        $this->mastodon_service = new Mastodon_Service();
         $this->logger = new Logger_Service($database);
     }
 
@@ -69,10 +68,14 @@ class Scheduler_Service {
         $content = $pub->get_content();
         $content_preview = mb_substr(wp_strip_all_tags($content), 0, 80);
 
+        // Resolve qual serviço Mastodon usar
+        $mastodon_service = $this->resolve_mastodon_service($pub);
+        $account_label = $this->get_account_label($pub);
+
         $this->logger->info('Iniciando processamento de publicação', [
             'related_type' => 'publication',
             'related_id' => $pub->get_id(),
-            'details' => sprintf('Item #%d | Agendada para: %s', $pub->get_item_id(), $pub->get_scheduled_for()),
+            'details' => sprintf('Item #%d | Agendada para: %s | Conta: %s', $pub->get_item_id(), $pub->get_scheduled_for(), $account_label),
             'content_preview' => $content_preview,
             'attempt' => $pub->get_attempt_count() + 1,
         ]);
@@ -81,18 +84,18 @@ class Scheduler_Service {
         $this->pub_repo->update($pub);
 
         try {
-            $media_ids = $this->upload_item_image($pub);
+            $media_ids = $this->upload_item_image($pub, $mastodon_service);
 
             if (!empty($media_ids)) {
                 $this->logger->info('Imagem enviada ao Mastodon', [
                     'related_type' => 'publication',
                     'related_id' => $pub->get_id(),
-                    'details' => sprintf('media_ids: %s', implode(', ', $media_ids)),
+                    'details' => sprintf('media_ids: %s | Conta: %s', implode(', ', $media_ids), $account_label),
                     'media_count' => count($media_ids),
                 ]);
             }
 
-            $result = $this->mastodon_service->post_status($content, $media_ids);
+            $result = $mastodon_service->post_status($content, $media_ids);
 
             if ($result && isset($result['id'])) {
                 $pub->mark_as_published($result['id'], $result['url'] ?? '');
@@ -104,7 +107,7 @@ class Scheduler_Service {
                     'mastodon_url' => $result['url'] ?? '',
                     'content_preview' => $content_preview,
                     'media_count' => count($media_ids),
-                    'details' => sprintf('Mastodon ID: %s | Mídia: %d', $result['id'], count($media_ids)),
+                    'details' => sprintf('Mastodon ID: %s | Mídia: %d | Conta: %s', $result['id'], count($media_ids), $account_label),
                 ]);
             } else {
                 throw new \Exception('Resposta inválida do Mastodon: ' . wp_json_encode($result));
@@ -119,7 +122,7 @@ class Scheduler_Service {
                     'related_id' => $pub->get_id(),
                     'error' => $e->getMessage(),
                     'attempt' => $pub->get_attempt_count(),
-                    'details' => sprintf('Tentativa %d/%d | Próxima em 10min', $pub->get_attempt_count(), get_option('nc_max_attempts', 3)),
+                    'details' => sprintf('Tentativa %d/%d | Próxima em 10min | Conta: %s', $pub->get_attempt_count(), get_option('nc_max_attempts', 3), $account_label),
                     'content_preview' => $content_preview,
                 ]);
             } else {
@@ -129,7 +132,7 @@ class Scheduler_Service {
                     'related_id' => $pub->get_id(),
                     'error' => $e->getMessage(),
                     'attempt' => $pub->get_attempt_count(),
-                    'details' => sprintf('Esgotadas %d tentativas', $pub->get_attempt_count()),
+                    'details' => sprintf('Esgotadas %d tentativas | Conta: %s', $pub->get_attempt_count(), $account_label),
                     'content_preview' => $content_preview,
                 ]);
             }
@@ -138,7 +141,43 @@ class Scheduler_Service {
         }
     }
 
-    private function upload_item_image($pub) {
+    /**
+     * Resolve qual serviço Mastodon usar para a publicação
+     */
+    private function resolve_mastodon_service($pub) {
+        $account_id = $pub->get_mastodon_account_id();
+
+        if ($account_id) {
+            try {
+                return Mastodon_Service::for_account($account_id, $this->database);
+            } catch (\Exception $e) {
+                $this->logger->warning('Conta Mastodon específica indisponível, usando padrão', [
+                    'related_type' => 'publication',
+                    'related_id' => $pub->get_id(),
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        // Tenta conta padrão cadastrada, senão usa configuração legada
+        return Mastodon_Service::get_default($this->database);
+    }
+
+    /**
+     * Obtém label da conta para logs
+     */
+    private function get_account_label($pub) {
+        $account_id = $pub->get_mastodon_account_id();
+        if (!$account_id) {
+            return 'padrão';
+        }
+
+        $repo = new Mastodon_Account_Repository($this->database);
+        $account = $repo->find($account_id);
+        return $account ? $account->get_name() : "#{$account_id}";
+    }
+
+    private function upload_item_image($pub, $mastodon_service) {
         $item_repo = new Item_Repository($this->database);
         $item = $item_repo->find($pub->get_item_id());
 
@@ -168,7 +207,7 @@ class Scheduler_Service {
             if ($item->get_image_local_id()) {
                 $local_path = get_attached_file($item->get_image_local_id());
                 if ($local_path && file_exists($local_path)) {
-                    $media_id = $this->mastodon_service->upload_media($local_path);
+                    $media_id = $mastodon_service->upload_media($local_path);
                     return $media_id ? [$media_id] : [];
                 }
             }
@@ -206,7 +245,7 @@ class Scheduler_Service {
                 'details' => sprintf('Tamanho: %s | Tipo: .%s', size_format(strlen($body)), $ext),
             ]);
 
-            $media_id = $this->mastodon_service->upload_media($tmp_file);
+            $media_id = $mastodon_service->upload_media($tmp_file);
             return $media_id ? [$media_id] : [];
         } catch (\Exception $e) {
             $this->logger->warning('Falha no upload de imagem, publicando sem mídia', [
