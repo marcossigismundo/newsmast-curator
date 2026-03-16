@@ -2,6 +2,7 @@
 namespace NewsmastCurator\API;
 
 use NewsmastCurator\Repositories\Item_Repository;
+use NewsmastCurator\Repositories\Source_Repository;
 
 class Items_Controller extends Base_REST_Controller {
     protected $rest_base = 'items';
@@ -31,8 +32,20 @@ class Items_Controller extends Base_REST_Controller {
         $items = $repo->find_all($args);
         $total = $repo->count($args);
 
+        // Enriquece com dados da fonte (nome e termos de busca)
+        $sources_map = $this->get_sources_map();
+
+        $items_data = array_map(function($item) use ($sources_map) {
+            $data = $item->to_api_response();
+            $source = $sources_map[$item->get_source_id()] ?? null;
+            $data['source_name'] = $source ? $source->get_name() : '';
+            $config = $source ? $source->get_config() : [];
+            $data['search_terms'] = $config['search_terms'] ?? '';
+            return $data;
+        }, $items);
+
         return $this->prepare_response([
-            'items' => array_map(fn($i) => $i->to_api_response(), $items),
+            'items' => $items_data,
             'total' => $total,
             'pages' => ceil($total / $args['per_page']),
         ]);
@@ -48,5 +61,18 @@ class Items_Controller extends Base_REST_Controller {
     public function get_stats($request) {
         $repo = new Item_Repository($this->database);
         return $this->prepare_response($repo->get_curated_stats());
+    }
+
+    /**
+     * Carrega mapa de fontes indexado por ID
+     */
+    private function get_sources_map() {
+        $source_repo = new Source_Repository($this->database);
+        $sources = $source_repo->find_all();
+        $map = [];
+        foreach ($sources as $source) {
+            $map[$source->get_id()] = $source;
+        }
+        return $map;
     }
 }

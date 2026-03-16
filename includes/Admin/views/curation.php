@@ -141,8 +141,14 @@ NC.renderItemsGrid = function(items, curated) {
             : '';
 
         html += '<h3 class="nc-item-title">' + collectionBadge + NC.escapeHtml(item.title) + '</h3>' +
-            '<div class="nc-item-meta">' +
-                '<span><span class="dashicons dashicons-calendar" style="font-size:14px;"></span> ' +
+            '<div class="nc-item-meta">';
+        if (item.source_name) {
+            html += '<span title="Fonte"><span class="dashicons dashicons-admin-site-alt3" style="font-size:14px;"></span> ' + NC.escapeHtml(item.source_name) + '</span>';
+        }
+        if (item.search_terms) {
+            html += '<span title="Termo de busca"><span class="dashicons dashicons-search" style="font-size:14px;"></span> ' + NC.escapeHtml(item.search_terms) + '</span>';
+        }
+        html += '<span><span class="dashicons dashicons-calendar" style="font-size:14px;"></span> ' +
                 new Date(item.collected_at).toLocaleString('pt-BR') + '</span>';
         if (item.author) {
             html += '<span><span class="dashicons dashicons-admin-users" style="font-size:14px;"></span> ' + NC.escapeHtml(item.author) + '</span>';
@@ -169,7 +175,8 @@ NC.renderItemsList = function(items, curated) {
         '<th style="width:40px;"><input type="checkbox" onchange="NC.selectAll(this)"></th>' +
         '<th style="width:60px;">' + NC.__('image', 'Imagem') + '</th>' +
         '<th>' + NC.__('title', 'Título') + '</th>' +
-        '<th>' + NC.__('source_author', 'Fonte') + '</th>' +
+        '<th>' + NC.__('source', 'Fonte') + '</th>' +
+        '<th>' + NC.__('filter', 'Filtro') + '</th>' +
         '<th>' + NC.__('date', 'Data') + '</th>' +
         '<th>' + NC.__('actions', 'Ações') + '</th>' +
         '</tr></thead><tbody>';
@@ -195,7 +202,11 @@ NC.renderItemsList = function(items, curated) {
             html += '<div class="nc-list-excerpt">' + excerpt + '</div>';
         }
         html += '</td>';
-        html += '<td>' + NC.escapeHtml(item.author || '-') + '</td>';
+        html += '<td>' + NC.escapeHtml(item.source_name || '-') + '</td>';
+        var searchBadge = item.search_terms
+            ? '<span class="nc-badge nc-badge-info" style="font-size:10px;"><span class="dashicons dashicons-search" style="font-size:11px;width:11px;height:11px;vertical-align:middle;"></span> ' + NC.escapeHtml(item.search_terms) + '</span>'
+            : '<span style="color:var(--nc-text-light);">—</span>';
+        html += '<td>' + searchBadge + '</td>';
         html += '<td>' + new Date(item.collected_at).toLocaleDateString('pt-BR') + '</td>';
         html += '<td class="nc-table-actions">';
         if (curated === 0) {
