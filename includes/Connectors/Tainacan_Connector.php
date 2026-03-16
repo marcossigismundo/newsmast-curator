@@ -30,6 +30,8 @@ class Tainacan_Connector implements Connector_Interface {
             'perpage' => $per_page,
             'order'   => 'DESC',
             'orderby' => $orderby,
+            // Solicitar thumbnail na resposta (não vem por padrão)
+            'fetch_only' => 'title,description,thumbnail,_thumbnail_id,url,document_as_html,creation_date,author_name,metadata,id,collection_id,document_type,document_mimetype',
         ];
 
         // Filtro de busca por termos/assunto
