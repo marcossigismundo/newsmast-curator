@@ -642,8 +642,7 @@ NC.deleteSource = function(id) {
 };
 
 /**
- * Testa busca no acervo Tainacan antes de salvar a fonte
- * Faz a requisição diretamente à API pública do Tainacan (não precisa do backend)
+ * Testa busca no acervo Tainacan via backend (evita bloqueio CORS)
  */
 NC.testTainacanSearch = function() {
     var url = jQuery('#nc-source-url').val().replace(/\/+$/, '');
@@ -660,78 +659,42 @@ NC.testTainacanSearch = function() {
     $btn.prop('disabled', true).find('.dashicons').removeClass('dashicons-search').addClass('dashicons-update nc-spin');
     $result.html('<div style="font-size:12px;color:var(--nc-text-light);"><span class="dashicons dashicons-update nc-spin" style="font-size:14px;width:14px;height:14px;vertical-align:middle;"></span> Consultando acervo Tainacan...</div>');
 
-    var apiUrl = url + '/wp-json/tainacan/v2/collection/' + collectionId + '/items?perpage=3&order=DESC&orderby=date';
-    if (searchTerms) {
-        apiUrl += '&search=' + encodeURIComponent(searchTerms);
-    }
-
-    jQuery.ajax({
-        url: apiUrl,
-        method: 'GET',
-        timeout: 30000,
-        dataType: 'json',
-        success: function(data, textStatus, xhr) {
-            var total = parseInt(xhr.getResponseHeader('X-WP-Total')) || 0;
-            var items = (data && data.items) ? data.items : [];
-
-            if (total > 0) {
-                var html = '<div class="nc-notice nc-notice-success" style="margin:0;padding:10px 12px;font-size:12px;">';
-                html += '<span class="dashicons dashicons-yes-alt"></span> ';
-                if (searchTerms) {
-                    html += '<strong>' + total + ' itens</strong> encontrados para "<strong>' + NC.escapeHtml(searchTerms) + '</strong>"';
-                } else {
-                    html += '<strong>' + total + ' itens</strong> encontrados no acervo';
-                }
-                html += '</div>';
-
-                // Mostrar amostra de itens
-                if (items.length > 0) {
-                    html += '<div style="margin-top:8px;padding:10px;background:var(--nc-bg-alt,#f8f9fa);border-radius:6px;font-size:12px;">';
-                    html += '<strong style="font-size:11px;color:var(--nc-text-light);text-transform:uppercase;">Amostra dos primeiros itens:</strong>';
-                    html += '<ul style="margin:6px 0 0;padding-left:18px;list-style:disc;">';
-                    items.forEach(function(item) {
-                        var title = item.title || '';
-                        // Tenta denominação se título vazio
-                        if (!title && item.metadata) {
-                            for (var key in item.metadata) {
-                                var meta = item.metadata[key];
-                                if (meta && meta.name && (meta.name.toLowerCase() === 'denominação' || meta.name.toLowerCase() === 'denominacao') && meta.value_as_string) {
-                                    title = meta.value_as_string;
-                                    break;
-                                }
-                            }
-                        }
-                        title = title || '(sem título)';
-                        // Strip HTML tags
-                        title = jQuery('<div>').html(title).text();
-                        if (title.length > 80) title = title.substring(0, 80) + '...';
-                        html += '<li>' + NC.escapeHtml(title) + '</li>';
-                    });
-                    html += '</ul></div>';
-                }
-
-                $result.html(html);
-            } else {
-                var msg = searchTerms
-                    ? 'Nenhum item encontrado para "<strong>' + NC.escapeHtml(searchTerms) + '</strong>". Tente outros termos.'
-                    : 'Nenhum item encontrado nesta coleção. Verifique o ID.';
-                $result.html('<div class="nc-notice nc-notice-warning" style="margin:0;padding:8px 12px;font-size:12px;"><span class="dashicons dashicons-warning"></span> ' + msg + '</div>');
-            }
-        },
-        error: function(xhr) {
-            var msg = 'Erro ao consultar a API Tainacan. ';
-            if (xhr.status === 404) {
-                msg += 'Coleção não encontrada (ID: ' + collectionId + '). Verifique a URL e o ID.';
-            } else if (xhr.status === 0) {
-                msg += 'Não foi possível conectar. Verifique a URL.';
-            } else {
-                msg += 'HTTP ' + xhr.status;
-            }
-            $result.html('<div class="nc-notice nc-notice-error" style="margin:0;padding:8px 12px;font-size:12px;"><span class="dashicons dashicons-dismiss"></span> ' + msg + '</div>');
-        },
-        complete: function() {
-            $btn.prop('disabled', false).find('.dashicons').removeClass('dashicons-update nc-spin').addClass('dashicons-search');
+    wp.apiFetch({
+        path: ncData.apiUrl + '/sources/test-tainacan',
+        method: 'POST',
+        data: {
+            url: url,
+            collection_id: collectionId,
+            search_terms: searchTerms
         }
+    }).then(function(result) {
+        if (result.success) {
+            var html = '<div class="nc-notice nc-notice-success" style="margin:0;padding:10px 12px;font-size:12px;">';
+            html += '<span class="dashicons dashicons-yes-alt"></span> ';
+            html += NC.escapeHtml(result.message);
+            html += '</div>';
+
+            // Mostrar amostra de itens
+            if (result.sample_items && result.sample_items.length > 0) {
+                html += '<div style="margin-top:8px;padding:10px;background:var(--nc-bg-alt,#f8f9fa);border-radius:6px;font-size:12px;">';
+                html += '<strong style="font-size:11px;color:var(--nc-text-light);text-transform:uppercase;">Amostra dos primeiros itens:</strong>';
+                html += '<ul style="margin:6px 0 0;padding-left:18px;list-style:disc;">';
+                result.sample_items.forEach(function(item) {
+                    var title = item.title || '(sem título)';
+                    if (title.length > 80) title = title.substring(0, 80) + '...';
+                    html += '<li>' + NC.escapeHtml(title) + '</li>';
+                });
+                html += '</ul></div>';
+            }
+
+            $result.html(html);
+        } else {
+            $result.html('<div class="nc-notice nc-notice-warning" style="margin:0;padding:8px 12px;font-size:12px;"><span class="dashicons dashicons-warning"></span> ' + NC.escapeHtml(result.message) + '</div>');
+        }
+    }).catch(function(error) {
+        $result.html('<div class="nc-notice nc-notice-error" style="margin:0;padding:8px 12px;font-size:12px;"><span class="dashicons dashicons-dismiss"></span> Erro: ' + NC.escapeHtml(error.message || 'Erro desconhecido') + '</div>');
+    }).finally(function() {
+        $btn.prop('disabled', false).find('.dashicons').removeClass('dashicons-update nc-spin').addClass('dashicons-search');
     });
 };
 </script>

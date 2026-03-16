@@ -80,6 +80,9 @@ class Tainacan_Connector implements Connector_Interface {
                 $title = $this->extract_denomination($item);
             }
 
+            // Autor: tenta campo 'autor'/'autoria' dos metadados, fallback para author_name
+            $author = $this->extract_metadata_value($item, ['autor', 'autoria']) ?: ($item['author_name'] ?? null);
+
             $items[] = [
                 'external_id' => 'tainacan_' . $item['id'],
                 'title' => $title,
@@ -87,7 +90,7 @@ class Tainacan_Connector implements Connector_Interface {
                 'excerpt' => $this->extract_excerpt($item),
                 'url' => $item['url'] ?? '',
                 'image_url' => $image_url,
-                'author' => $item['author_name'] ?? null,
+                'author' => $author,
                 'published_date' => $this->parse_tainacan_date($item['creation_date'] ?? ''),
                 'metadata' => $item['metadata'] ?? [],
             ];
@@ -97,36 +100,78 @@ class Tainacan_Connector implements Connector_Interface {
     }
 
     /**
-     * Extrai denominação dos metadados (usado como fallback para título)
+     * Extrai valor de metadado por slug ou nome
+     *
+     * @param array $item Item do Tainacan
+     * @param array $slugs Lista de slugs/nomes para tentar
+     * @return string|null
      */
-    private function extract_denomination($item) {
+    private function extract_metadata_value($item, $slugs) {
         $metadata = $item['metadata'] ?? [];
+        foreach ($slugs as $slug) {
+            // Tenta pelo slug (chave do array)
+            if (isset($metadata[$slug]) && !empty($metadata[$slug]['value_as_string'])) {
+                return wp_strip_all_tags($metadata[$slug]['value_as_string']);
+            }
+        }
+        // Tenta pelo nome do metadado
         foreach ($metadata as $meta) {
             if (!empty($meta['value_as_string']) && isset($meta['name'])) {
                 $name = strtolower($meta['name']);
-                if ($name === 'denominação' || $name === 'denominacao') {
-                    return wp_strip_all_tags($meta['value_as_string']);
+                foreach ($slugs as $slug) {
+                    if ($name === strtolower($slug) || strpos($name, strtolower($slug)) !== false) {
+                        return wp_strip_all_tags($meta['value_as_string']);
+                    }
                 }
             }
         }
-        return '';
+        return null;
+    }
+
+    /**
+     * Extrai denominação dos metadados (usado como fallback para título)
+     */
+    private function extract_denomination($item) {
+        return $this->extract_metadata_value($item, ['denominacao', 'denominação']) ?: '';
     }
 
     /**
      * Extrai URL da imagem do item Tainacan
+     *
+     * Ordem de prioridade:
+     * 1. Campo thumbnail (disponível direto na API, sem requisição extra)
+     * 2. document_as_html (pode conter <img> embutido)
+     * 3. _thumbnail_id via /wp/v2/media (fallback lento, requisição extra)
      */
     private function extract_image_url($item) {
-        // Try document_as_html first (contains <a><img></a>)
+        // 1. Usar campo thumbnail direto da API (preferido — sem requisição extra)
+        if (!empty($item['thumbnail'])) {
+            // Tenta medium_large > large > tainacan-medium-full > full
+            $preferred_sizes = ['medium_large', 'large', 'tainacan-medium-full', 'tainacan-large-full', 'full'];
+            foreach ($preferred_sizes as $size) {
+                if (!empty($item['thumbnail'][$size][0])) {
+                    return $item['thumbnail'][$size][0];
+                }
+            }
+            // Qualquer tamanho disponível
+            foreach ($item['thumbnail'] as $size_data) {
+                if (!empty($size_data[0])) {
+                    return $size_data[0];
+                }
+            }
+        }
+
+        // 2. document_as_html (pode conter <a><img></a> com URLs)
         if (!empty($item['document_as_html'])) {
-            if (preg_match('/src=["\']([^"\']+)["\']/', $item['document_as_html'], $matches)) {
+            if (preg_match('/src=["\']([^"\']+)["\']/', $item['document_as_html'], $matches) && !empty($matches[1])) {
                 return $matches[1];
             }
-            if (preg_match('/href=["\']([^"\']+)["\']/', $item['document_as_html'], $matches)) {
+            if (preg_match('/href=["\']([^"\']+)["\']/', $item['document_as_html'], $matches) && !empty($matches[1])) {
                 return $matches[1];
             }
         }
 
-        // Fallback: resolve _thumbnail_id via WordPress media API
+        // 3. Fallback: resolve _thumbnail_id via WordPress media API (lento)
         if (!empty($item['_thumbnail_id'])) {
             $base_url = rtrim($this->config['url'], '/');
             $media_url = "{$base_url}/wp-json/wp/v2/media/{$item['_thumbnail_id']}";
