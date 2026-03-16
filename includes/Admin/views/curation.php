@@ -136,10 +136,20 @@ NC.renderItemsGrid = function(items, curated) {
             ' data-formatted="' + encodeURIComponent(item.formatted_content || '') + '">' +
             '<span style="font-size:12px;color:#6C757D;">' + NC.__('select', 'Selecionar') + '</span></label>';
 
-        html += '<h3 class="nc-item-title">' + NC.escapeHtml(item.title) + '</h3>' +
-            '<div class="nc-item-meta">' +
-                '<span><span class="dashicons dashicons-calendar" style="font-size:14px;"></span> ' +
-                new Date(item.collected_at).toLocaleDateString('pt-BR') + '</span>';
+        var collectionBadge = item.collection_type === 'auto'
+            ? '<span class="nc-badge nc-badge-info" style="font-size:9px;vertical-align:middle;" title="Coletado automaticamente em ' + new Date(item.collected_at).toLocaleString('pt-BR') + '"><span class="dashicons dashicons-clock" style="font-size:11px;width:11px;height:11px;vertical-align:middle;"></span> Auto</span> '
+            : '';
+
+        html += '<h3 class="nc-item-title">' + collectionBadge + NC.escapeHtml(item.title) + '</h3>' +
+            '<div class="nc-item-meta">';
+        if (item.source_name) {
+            html += '<span title="Fonte"><span class="dashicons dashicons-admin-site-alt3" style="font-size:14px;"></span> ' + NC.escapeHtml(item.source_name) + '</span>';
+        }
+        if (item.search_terms) {
+            html += '<span title="Termo de busca"><span class="dashicons dashicons-search" style="font-size:14px;"></span> ' + NC.escapeHtml(item.search_terms) + '</span>';
+        }
+        html += '<span><span class="dashicons dashicons-calendar" style="font-size:14px;"></span> ' +
+                new Date(item.collected_at).toLocaleString('pt-BR') + '</span>';
         if (item.author) {
             html += '<span><span class="dashicons dashicons-admin-users" style="font-size:14px;"></span> ' + NC.escapeHtml(item.author) + '</span>';
         }
@@ -165,7 +175,8 @@ NC.renderItemsList = function(items, curated) {
         '<th style="width:40px;"><input type="checkbox" onchange="NC.selectAll(this)"></th>' +
         '<th style="width:60px;">' + NC.__('image', 'Imagem') + '</th>' +
         '<th>' + NC.__('title', 'Título') + '</th>' +
-        '<th>' + NC.__('source_author', 'Fonte') + '</th>' +
+        '<th>' + NC.__('source', 'Fonte') + '</th>' +
+        '<th>' + NC.__('filter', 'Filtro') + '</th>' +
         '<th>' + NC.__('date', 'Data') + '</th>' +
         '<th>' + NC.__('actions', 'Ações') + '</th>' +
         '</tr></thead><tbody>';
@@ -183,12 +194,19 @@ NC.renderItemsList = function(items, curated) {
         html += '</td>';
         var title = item.title.length > 80 ? NC.escapeHtml(item.title.substring(0, 80)) + '...' : NC.escapeHtml(item.title);
         var excerpt = item.preview_text ? (item.preview_text.length > 100 ? NC.escapeHtml(item.preview_text.substring(0, 100)) + '...' : NC.escapeHtml(item.preview_text)) : '';
-        html += '<td><strong class="nc-item-title">' + title + '</strong>';
+        var listBadge = item.collection_type === 'auto'
+            ? '<span class="nc-badge nc-badge-info" style="font-size:9px;margin-left:6px;" title="Coleta automática"><span class="dashicons dashicons-clock" style="font-size:11px;width:11px;height:11px;vertical-align:middle;"></span> Auto</span>'
+            : '';
+        html += '<td><strong class="nc-item-title">' + title + listBadge + '</strong>';
         if (excerpt) {
             html += '<div class="nc-list-excerpt">' + excerpt + '</div>';
         }
         html += '</td>';
-        html += '<td>' + NC.escapeHtml(item.author || '-') + '</td>';
+        html += '<td>' + NC.escapeHtml(item.source_name || '-') + '</td>';
+        var searchBadge = item.search_terms
+            ? '<span class="nc-badge nc-badge-info" style="font-size:10px;"><span class="dashicons dashicons-search" style="font-size:11px;width:11px;height:11px;vertical-align:middle;"></span> ' + NC.escapeHtml(item.search_terms) + '</span>'
+            : '<span style="color:var(--nc-text-light);">—</span>';
+        html += '<td>' + searchBadge + '</td>';
         html += '<td>' + new Date(item.collected_at).toLocaleDateString('pt-BR') + '</td>';
         html += '<td class="nc-table-actions">';
         if (curated === 0) {

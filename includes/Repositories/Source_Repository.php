@@ -54,6 +54,33 @@ class Source_Repository extends Base_Repository {
     }
 
     /**
+     * Busca fontes com coleta automática habilitada que estão no horário
+     *
+     * @return array
+     */
+    public function find_due_for_auto_collect() {
+        $now = current_time('mysql');
+
+        $sql = "SELECT * FROM {$this->table_name}
+                WHERE status = 'active'
+                  AND auto_collect = 1
+                  AND (
+                    last_collection IS NULL
+                    OR (collect_interval = 'every_15_minutes' AND last_collection <= DATE_SUB('{$now}', INTERVAL 15 MINUTE))
+                    OR (collect_interval = 'every_30_minutes' AND last_collection <= DATE_SUB('{$now}', INTERVAL 30 MINUTE))
+                    OR (collect_interval = 'hourly' AND last_collection <= DATE_SUB('{$now}', INTERVAL 1 HOUR))
+                    OR (collect_interval = 'every_6_hours' AND last_collection <= DATE_SUB('{$now}', INTERVAL 6 HOUR))
+                    OR (collect_interval = 'every_12_hours' AND last_collection <= DATE_SUB('{$now}', INTERVAL 12 HOUR))
+                    OR (collect_interval = 'daily' AND last_collection <= DATE_SUB('{$now}', INTERVAL 1 DAY))
+                  )
+                ORDER BY last_collection ASC";
+
+        $rows = $this->wpdb->get_results($sql);
+
+        return array_map([Source::class, 'from_row'], $rows);
+    }
+
+    /**
      * Busca fontes com erro
      *
      * @return array

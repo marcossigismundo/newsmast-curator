@@ -22,6 +22,10 @@ class Sources_Controller extends Base_REST_Controller {
         register_rest_route($this->namespace, '/' . $this->rest_base . '/(?P<id>[\d]+)/collect', [
             ['methods' => 'POST', 'callback' => [$this, 'collect'], 'permission_callback' => [$this, 'check_permissions']],
         ]);
+
+        register_rest_route($this->namespace, '/' . $this->rest_base . '/test-tainacan', [
+            ['methods' => 'POST', 'callback' => [$this, 'test_tainacan_search'], 'permission_callback' => [$this, 'check_permissions']],
+        ]);
     }
 
     public function get_items($request) {
@@ -42,6 +46,8 @@ class Sources_Controller extends Base_REST_Controller {
         $source->set_connector_type($request['connector_type']);
         $source->set_url($request['url']);
         $source->set_config($request['config'] ?? []);
+        if (isset($request['auto_collect'])) $source->set_auto_collect($request['auto_collect']);
+        if (isset($request['collect_interval'])) $source->set_collect_interval($request['collect_interval']);
 
         $validation = $source->validate();
         if ($validation !== true) {
@@ -63,6 +69,8 @@ class Sources_Controller extends Base_REST_Controller {
         if (isset($request['url'])) $source->set_url($request['url']);
         if (isset($request['config'])) $source->set_config($request['config']);
         if (isset($request['status'])) $source->set_status($request['status']);
+        if (isset($request['auto_collect'])) $source->set_auto_collect($request['auto_collect']);
+        if (isset($request['collect_interval'])) $source->set_collect_interval($request['collect_interval']);
 
         $repo->update($source);
         return $this->prepare_response($source->to_api_response());
@@ -72,6 +80,30 @@ class Sources_Controller extends Base_REST_Controller {
         $repo = new Source_Repository($this->database);
         $result = $repo->delete($request['id']);
         return $result ? $this->prepare_response(['success' => true]) : $this->prepare_error('Failed to delete');
+    }
+
+    /**
+     * Testa busca no Tainacan via backend (evita CORS no browser)
+     */
+    public function test_tainacan_search($request) {
+        $url = esc_url_raw($request['url'] ?? '');
+        $collection_id = absint($request['collection_id'] ?? 0);
+        $search_terms = sanitize_text_field($request['search_terms'] ?? '');
+
+        if (empty($url) || empty($collection_id)) {
+            return $this->prepare_error(__('URL e ID da coleção são obrigatórios', 'newsmast-curator'), 'missing_params', 400);
+        }
+
+        $connector = new \NewsmastCurator\Connectors\Tainacan_Connector();
+        $connector->connect([
+            'url' => $url,
+            'collection_id' => $collection_id,
+            'search_terms' => $search_terms,
+            'per_page' => 3,
+        ]);
+
+        $result = $connector->test_connection();
+        return $this->prepare_response($result);
     }
 
     public function collect($request) {

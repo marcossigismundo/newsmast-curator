@@ -28,7 +28,7 @@ class Database {
      *
      * @var string
      */
-    private $db_version = '1.1.0';
+    private $db_version = '1.2.0';
 
     /**
      * Construtor
@@ -45,6 +45,7 @@ class Database {
             'logs' => $wpdb->prefix . 'nc_logs',
             'collections' => $wpdb->prefix . 'nc_collections',
             'collection_items' => $wpdb->prefix . 'nc_collection_items',
+            'mastodon_accounts' => $wpdb->prefix . 'nc_mastodon_accounts',
         ];
     }
 
@@ -82,6 +83,12 @@ class Database {
             $this->create_logs_table();
             $this->create_collections_table();
             $this->create_collection_items_table();
+            $this->create_mastodon_accounts_table();
+
+            // Run migrations for existing tables
+            $this->migrate_sources_auto_collect();
+            $this->migrate_items_collection_type();
+            $this->migrate_publications_mastodon_account();
 
             update_option('nc_db_version', $this->db_version);
 
@@ -282,6 +289,77 @@ class Database {
 
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
         dbDelta($sql);
+    }
+
+    /**
+     * Cria tabela de contas Mastodon
+     *
+     * @return void
+     */
+    private function create_mastodon_accounts_table() {
+        $table_name = $this->tables['mastodon_accounts'];
+        $charset_collate = $this->wpdb->get_charset_collate();
+
+        $sql = "CREATE TABLE {$table_name} (
+            id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+            name VARCHAR(255) NOT NULL,
+            instance_url VARCHAR(500) NOT NULL,
+            access_token VARCHAR(500) NOT NULL,
+            username VARCHAR(255) NULL,
+            is_default TINYINT(1) DEFAULT 0,
+            status VARCHAR(20) DEFAULT 'active',
+            last_error TEXT NULL,
+            created_at DATETIME NOT NULL,
+            updated_at DATETIME NOT NULL,
+            PRIMARY KEY (id),
+            KEY idx_status (status),
+            KEY idx_is_default (is_default)
+        ) {$charset_collate};";
+
+        require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+        dbDelta($sql);
+    }
+
+    /**
+     * Migração: adiciona campos de coleta automática à tabela sources
+     *
+     * @return void
+     */
+    private function migrate_sources_auto_collect() {
+        $table = $this->tables['sources'];
+        $row = $this->wpdb->get_row("SHOW COLUMNS FROM {$table} LIKE 'auto_collect'");
+        if (!$row) {
+            $this->wpdb->query("ALTER TABLE {$table} ADD COLUMN auto_collect TINYINT(1) DEFAULT 0 AFTER last_error");
+            $this->wpdb->query("ALTER TABLE {$table} ADD COLUMN collect_interval VARCHAR(20) DEFAULT 'hourly' AFTER auto_collect");
+        }
+    }
+
+    /**
+     * Migração: adiciona campo collection_type à tabela items
+     *
+     * @return void
+     */
+    private function migrate_items_collection_type() {
+        $table = $this->tables['items'];
+        $row = $this->wpdb->get_row("SHOW COLUMNS FROM {$table} LIKE 'collection_type'");
+        if (!$row) {
+            $this->wpdb->query("ALTER TABLE {$table} ADD COLUMN collection_type VARCHAR(20) DEFAULT 'manual' AFTER collected_at");
+            $this->wpdb->query("ALTER TABLE {$table} ADD KEY idx_collection_type (collection_type)");
+        }
+    }
+
+    /**
+     * Migração: adiciona campo mastodon_account_id à tabela publications
+     *
+     * @return void
+     */
+    private function migrate_publications_mastodon_account() {
+        $table = $this->tables['publications'];
+        $row = $this->wpdb->get_row("SHOW COLUMNS FROM {$table} LIKE 'mastodon_account_id'");
+        if (!$row) {
+            $this->wpdb->query("ALTER TABLE {$table} ADD COLUMN mastodon_account_id BIGINT(20) UNSIGNED NULL AFTER item_id");
+            $this->wpdb->query("ALTER TABLE {$table} ADD KEY idx_mastodon_account_id (mastodon_account_id)");
+        }
     }
 
     /**

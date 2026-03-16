@@ -171,10 +171,12 @@ class Activator {
         // (at activation time, Plugin::run() hasn't added the filter yet)
         add_filter('cron_schedules', [self::class, 'add_cron_intervals']);
 
-        // Cron de coleta de fontes
-        if (!wp_next_scheduled('nc_collect_sources')) {
-            wp_schedule_event(time(), 'hourly', 'nc_collect_sources');
+        // Cron de coleta automática (verifica a cada 5 min quais fontes estão no horário)
+        $next_collect = wp_next_scheduled('nc_collect_sources');
+        if ($next_collect) {
+            wp_unschedule_event($next_collect, 'nc_collect_sources');
         }
+        wp_schedule_event(time(), 'every_5_minutes', 'nc_collect_sources');
 
         // Cron de processamento de publicações - reschedule to ensure it uses valid interval
         $next = wp_next_scheduled('nc_process_publications');
@@ -201,9 +203,24 @@ class Activator {
             'display' => __('A cada 5 minutos', 'newsmast-curator')
         ];
 
+        $schedules['every_15_minutes'] = [
+            'interval' => 900,
+            'display' => __('A cada 15 minutos', 'newsmast-curator')
+        ];
+
+        $schedules['every_30_minutes'] = [
+            'interval' => 1800,
+            'display' => __('A cada 30 minutos', 'newsmast-curator')
+        ];
+
         $schedules['custom_6hours'] = [
             'interval' => 21600,
             'display' => __('A cada 6 horas', 'newsmast-curator')
+        ];
+
+        $schedules['every_12_hours'] = [
+            'interval' => 43200,
+            'display' => __('A cada 12 horas', 'newsmast-curator')
         ];
 
         return $schedules;

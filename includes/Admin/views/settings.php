@@ -9,40 +9,96 @@
             <?php _e('Salvar Alterações', 'newsmast-curator'); ?>
         </button>
     </div>
-    <p class="nc-page-description"><?php _e('Configure a integração com Mastodon e o formato das publicações', 'newsmast-curator'); ?></p>
+    <p class="nc-page-description"><?php _e('Configure as contas Mastodon, formato das publicações e API pública', 'newsmast-curator'); ?></p>
 </div>
 
-<!-- Mastodon Connection -->
+<!-- Mastodon Accounts (Multi-Account) -->
 <div class="nc-card">
     <div class="nc-card-header">
         <h2 class="nc-card-title">
             <span class="dashicons dashicons-share-alt2"></span>
-            <?php _e('Conexão Mastodon', 'newsmast-curator'); ?>
+            <?php _e('Contas Mastodon', 'newsmast-curator'); ?>
         </h2>
-        <button class="nc-button nc-button-secondary" onclick="NC.testMastodon()">
-            <span class="dashicons dashicons-update"></span>
-            <?php _e('Testar Conexão', 'newsmast-curator'); ?>
+        <button class="nc-button nc-button-primary" onclick="NC.showAddAccountModal()">
+            <span class="dashicons dashicons-plus-alt"></span>
+            <?php _e('Nova Conta', 'newsmast-curator'); ?>
         </button>
     </div>
     <div class="nc-card-body">
-        <form id="nc-settings-form">
-            <div class="nc-form-group">
-                <label class="nc-form-label"><?php _e('Instância Mastodon', 'newsmast-curator'); ?></label>
-                <input type="url" id="nc-setting-instance" class="nc-form-control"
-                       value="<?php echo esc_attr(get_option('nc_mastodon_instance', '')); ?>"
-                       placeholder="https://masto.donte.com.br">
-                <span class="nc-form-help"><?php _e('URL completa da instância Mastodon (ex: https://mastodon.social)', 'newsmast-curator'); ?></span>
-            </div>
+        <p style="color:var(--nc-text-light);margin:0 0 15px;">
+            <?php _e('Configure múltiplas contas Mastodon para publicar conteúdo em diferentes instâncias. A conta padrão será usada quando nenhuma for selecionada ao agendar.', 'newsmast-curator'); ?>
+        </p>
 
-            <div class="nc-form-group">
-                <label class="nc-form-label"><?php _e('Token de Acesso', 'newsmast-curator'); ?></label>
-                <input type="password" id="nc-setting-token" class="nc-form-control"
-                       placeholder="<?php echo get_option('nc_mastodon_token', '') ? '••••••••••••••••' : 'Seu token de acesso'; ?>">
-                <span class="nc-form-help"><?php _e('Obtenha em: Sua Instância → Configurações → Desenvolvimento → Novo Aplicativo', 'newsmast-curator'); ?></span>
-            </div>
+        <?php
+        $legacy_instance = get_option('nc_mastodon_instance', '');
+        $legacy_token = get_option('nc_mastodon_token', '');
+        if (!empty($legacy_instance) && !empty($legacy_token)):
+        ?>
+        <div class="nc-notice nc-notice-warning" id="nc-legacy-mastodon-notice" style="margin-bottom:15px;">
+            <span class="dashicons dashicons-warning"></span>
+            <span>
+                <?php printf(
+                    __('Configuração legada detectada (%s). Clique para migrar para o novo sistema de contas.', 'newsmast-curator'),
+                    '<strong>' . esc_html($legacy_instance) . '</strong>'
+                ); ?>
+            </span>
+            <button class="nc-button nc-button-secondary" style="margin-left:10px;" onclick="NC.migrateLegacyMastodon()">
+                <span class="dashicons dashicons-migrate"></span>
+                <?php _e('Migrar', 'newsmast-curator'); ?>
+            </button>
+        </div>
+        <?php endif; ?>
 
-            <div id="nc-mastodon-status"></div>
-        </form>
+        <div id="nc-mastodon-accounts-list">
+            <div class="nc-loading">
+                <div class="nc-spinner"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Adicionar/Editar Conta Mastodon -->
+<div class="nc-modal-overlay" id="nc-account-modal">
+    <div class="nc-modal" style="max-width:600px;">
+        <div class="nc-modal-header">
+            <h2 class="nc-modal-title" id="nc-account-modal-title"><?php _e('Nova Conta Mastodon', 'newsmast-curator'); ?></h2>
+            <button class="nc-modal-close" onclick="NC.closeModal('nc-account-modal')">
+                <span class="dashicons dashicons-no-alt"></span>
+            </button>
+        </div>
+        <div class="nc-modal-body">
+            <form id="nc-account-form">
+                <input type="hidden" id="nc-account-id">
+                <div class="nc-form-group">
+                    <label class="nc-form-label"><?php _e('Nome da Conta', 'newsmast-curator'); ?> *</label>
+                    <input type="text" id="nc-account-name" class="nc-form-control" required
+                           placeholder="<?php _e('Ex: IBRAM Oficial, Museus do Brasil...', 'newsmast-curator'); ?>">
+                    <span class="nc-form-help"><?php _e('Nome descritivo para identificar esta conta', 'newsmast-curator'); ?></span>
+                </div>
+                <div class="nc-form-group">
+                    <label class="nc-form-label"><?php _e('URL da Instância', 'newsmast-curator'); ?> *</label>
+                    <input type="url" id="nc-account-instance" class="nc-form-control" required
+                           placeholder="https://mastodon.social">
+                    <span class="nc-form-help"><?php _e('URL completa da instância Mastodon (ex: https://mastodon.social)', 'newsmast-curator'); ?></span>
+                </div>
+                <div class="nc-form-group">
+                    <label class="nc-form-label"><?php _e('Token de Acesso', 'newsmast-curator'); ?> *</label>
+                    <input type="password" id="nc-account-token" class="nc-form-control" required
+                           placeholder="<?php _e('Token de acesso do aplicativo', 'newsmast-curator'); ?>">
+                    <span class="nc-form-help"><?php _e('Obtenha em: Sua Instância → Configurações → Desenvolvimento → Novo Aplicativo (escopos: read, write:statuses, write:media)', 'newsmast-curator'); ?></span>
+                </div>
+                <div id="nc-account-test-result"></div>
+            </form>
+        </div>
+        <div class="nc-modal-footer">
+            <button type="button" class="nc-button nc-button-secondary" onclick="NC.closeModal('nc-account-modal')">
+                <?php _e('Cancelar', 'newsmast-curator'); ?>
+            </button>
+            <button type="button" class="nc-button nc-button-primary" onclick="NC.saveAccount()">
+                <span class="dashicons dashicons-saved"></span>
+                <?php _e('Salvar Conta', 'newsmast-curator'); ?>
+            </button>
+        </div>
     </div>
 </div>
 
@@ -189,7 +245,7 @@ $site_url = get_rest_url(null, 'newsmast-curator/v1/public');
                         <tr>
                             <td><span class="nc-badge nc-badge-info">POST</span></td>
                             <td><code>/public/schedule</code></td>
-                            <td><?php _e('Agendar publicação', 'newsmast-curator'); ?></td>
+                            <td><?php _e('Agendar publicação (aceita mastodon_account_id)', 'newsmast-curator'); ?></td>
                         </tr>
                         <tr>
                             <td><span class="nc-badge nc-badge-success">GET</span></td>
@@ -210,55 +266,7 @@ $site_url = get_rest_url(null, 'newsmast-curator/v1/public');
                 <code style="display:block;padding:10px;background:#1e1e1e;color:#d4d4d4;border-radius:4px;font-size:11px;margin-top:8px;white-space:pre-wrap;word-break:break-all;">curl -X POST "<?php echo esc_url($site_url); ?>/schedule" \
   -H "X-NC-API-Key: SUA_CHAVE" \
   -H "Content-Type: application/json" \
-  -d '{"item_id": 1, "scheduled_for": "2026-03-04 15:00:00"}'</code>
-
-                <div style="margin-top:16px;">
-                    <strong style="font-size:13px;"><?php _e('Campos do POST /schedule:', 'newsmast-curator'); ?></strong>
-                </div>
-                <table class="nc-table" style="font-size:12px;margin-top:8px;">
-                    <thead>
-                        <tr>
-                            <th><?php _e('Campo', 'newsmast-curator'); ?></th>
-                            <th><?php _e('Tipo', 'newsmast-curator'); ?></th>
-                            <th><?php _e('Obrigatório', 'newsmast-curator'); ?></th>
-                            <th><?php _e('Descrição', 'newsmast-curator'); ?></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><code>item_id</code></td>
-                            <td>integer</td>
-                            <td><?php _e('Sim', 'newsmast-curator'); ?></td>
-                            <td><?php _e('ID do item curado', 'newsmast-curator'); ?></td>
-                        </tr>
-                        <tr>
-                            <td><code>scheduled_for</code></td>
-                            <td>string</td>
-                            <td><?php _e('Sim', 'newsmast-curator'); ?></td>
-                            <td><?php _e('Data/hora futura (Y-m-d H:i:s)', 'newsmast-curator'); ?></td>
-                        </tr>
-                        <tr>
-                            <td><code>content</code></td>
-                            <td>string</td>
-                            <td><?php _e('Não', 'newsmast-curator'); ?></td>
-                            <td><?php _e('Texto do post. Se omitido, usa o template configurado.', 'newsmast-curator'); ?></td>
-                        </tr>
-                    </tbody>
-                </table>
-
-                <div style="margin-top:16px;">
-                    <strong style="font-size:13px;"><?php _e('Códigos de resposta:', 'newsmast-curator'); ?></strong>
-                </div>
-                <table class="nc-table" style="font-size:12px;margin-top:8px;">
-                    <tbody>
-                        <tr><td><code>200</code></td><td><?php _e('Sucesso', 'newsmast-curator'); ?></td></tr>
-                        <tr><td><code>201</code></td><td><?php _e('Publicação criada', 'newsmast-curator'); ?></td></tr>
-                        <tr><td><code>400</code></td><td><?php _e('Erro de validação (campos obrigatórios, data retroativa)', 'newsmast-curator'); ?></td></tr>
-                        <tr><td><code>401</code></td><td><?php _e('API desabilitada ou não configurada', 'newsmast-curator'); ?></td></tr>
-                        <tr><td><code>403</code></td><td><?php _e('API Key inválida', 'newsmast-curator'); ?></td></tr>
-                        <tr><td><code>404</code></td><td><?php _e('Item ou publicação não encontrada', 'newsmast-curator'); ?></td></tr>
-                    </tbody>
-                </table>
+  -d '{"item_id": 1, "scheduled_for": "2026-03-04 15:00:00", "mastodon_account_ids": [1, 2]}'</code>
 
                 <p style="margin:16px 0 0;font-size:12px;color:#999;">
                     <strong>Base URL:</strong> <code style="font-size:11px;"><?php echo esc_url($site_url); ?></code>
@@ -271,6 +279,7 @@ $site_url = get_rest_url(null, 'newsmast-curator/v1/public');
 <script>
 jQuery(document).ready(function($) {
     NC.updateTemplatePreview();
+    NC.loadMastodonAccounts();
 
     $('#nc-setting-api-enabled').on('change', function() {
         $('#nc-api-settings-panel').toggle(this.checked);

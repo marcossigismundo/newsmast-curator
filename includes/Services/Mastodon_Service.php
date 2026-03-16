@@ -1,15 +1,37 @@
 <?php
 namespace NewsmastCurator\Services;
 
+use NewsmastCurator\Models\Mastodon_Account;
+
 class Mastodon_Service {
     private $api_base_url;
     private $access_token;
     private $character_limit = 500;
+    private $account_id = null;
 
-    public function __construct() {
-        $this->api_base_url = rtrim(get_option('nc_mastodon_instance', ''), '/');
-        $this->access_token = get_option('nc_mastodon_token', '');
+    /**
+     * Construtor - aceita conta Mastodon ou usa configuração legada
+     *
+     * @param Mastodon_Account|null $account Conta Mastodon específica
+     */
+    public function __construct($account = null) {
+        if ($account instanceof Mastodon_Account) {
+            $this->api_base_url = rtrim($account->get_instance_url(), '/');
+            $this->access_token = $account->get_access_token();
+            $this->account_id = $account->get_id();
+        } else {
+            // Fallback para configuração legada (wp_options)
+            $this->api_base_url = rtrim(get_option('nc_mastodon_instance', ''), '/');
+            $this->access_token = get_option('nc_mastodon_token', '');
+        }
         $this->character_limit = (int) get_option('nc_mastodon_character_limit', 500);
+    }
+
+    /**
+     * Obtém ID da conta usada
+     */
+    public function get_account_id() {
+        return $this->account_id;
     }
 
     public function post_status($content, $media_ids = []) {
@@ -81,6 +103,47 @@ class Mastodon_Service {
 
     public function get_character_limit() {
         return $this->character_limit;
+    }
+
+    /**
+     * Cria instância para uma conta específica pelo ID
+     *
+     * @param int $account_id
+     * @param \NewsmastCurator\Core\Database $database
+     * @return self
+     */
+    public static function for_account($account_id, $database) {
+        $repo = new \NewsmastCurator\Repositories\Mastodon_Account_Repository($database);
+        $account = $repo->find($account_id);
+
+        if (!$account) {
+            throw new \Exception(sprintf(__('Conta Mastodon #%d não encontrada', 'newsmast-curator'), $account_id));
+        }
+
+        if (!$account->is_active()) {
+            throw new \Exception(sprintf(__('Conta Mastodon "%s" está inativa', 'newsmast-curator'), $account->get_name()));
+        }
+
+        return new self($account);
+    }
+
+    /**
+     * Cria instância para a conta padrão ou legada
+     *
+     * @param \NewsmastCurator\Core\Database|null $database
+     * @return self
+     */
+    public static function get_default($database = null) {
+        if ($database) {
+            $repo = new \NewsmastCurator\Repositories\Mastodon_Account_Repository($database);
+            $account = $repo->find_default();
+            if ($account) {
+                return new self($account);
+            }
+        }
+
+        // Fallback para configuração legada
+        return new self();
     }
 
     private function make_request($endpoint, $method, $data = []) {

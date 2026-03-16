@@ -26,6 +26,7 @@ class Item {
     private $curated_by = null;
     private $curated_at = null;
     private $collected_at = '';
+    private $collection_type = 'manual';
 
     // Getters
     public function get_id() { return $this->id; }
@@ -48,6 +49,8 @@ class Item {
     public function get_curated_by() { return $this->curated_by; }
     public function get_curated_at() { return $this->curated_at; }
     public function get_collected_at() { return $this->collected_at; }
+    public function get_collection_type() { return $this->collection_type; }
+    public function is_auto_collected() { return $this->collection_type === 'auto'; }
 
     // Setters
     public function set_id($id) { $this->id = (int) $id; }
@@ -72,6 +75,7 @@ class Item {
     public function set_curated_by($user_id) { $this->curated_by = $user_id ? (int) $user_id : null; }
     public function set_curated_at($datetime) { $this->curated_at = $datetime; }
     public function set_collected_at($datetime) { $this->collected_at = $datetime; }
+    public function set_collection_type($type) { $this->collection_type = in_array($type, ['manual', 'auto']) ? $type : 'manual'; }
 
     /**
      * Gera hash MD5 do conteúdo para detectar duplicatas
@@ -212,6 +216,7 @@ class Item {
         $item->set_curated_by($row->curated_by ?? null);
         $item->set_curated_at($row->curated_at ?? null);
         $item->set_collected_at($row->collected_at ?? current_time('mysql'));
+        $item->set_collection_type($row->collection_type ?? 'manual');
 
         return $item;
     }
@@ -244,6 +249,7 @@ class Item {
             'curated_by' => $this->curated_by,
             'curated_at' => $this->curated_at,
             'collected_at' => $this->id === 0 ? current_time('mysql') : $this->collected_at,
+            'collection_type' => $this->collection_type,
         ];
     }
 
@@ -270,6 +276,7 @@ class Item {
             'curated_by' => $this->curated_by,
             'curated_at' => $this->curated_at,
             'collected_at' => $this->collected_at,
+            'collection_type' => $this->collection_type,
             'preview_text' => $this->get_preview_text(),
             'formatted_content' => $this->get_formatted_content(),
         ];

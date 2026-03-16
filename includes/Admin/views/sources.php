@@ -126,6 +126,33 @@
                 <div class="nc-form-group" id="nc-config-fields">
                     <!-- Campos dinâmicos de configuração serão inseridos aqui -->
                 </div>
+
+                <!-- Auto-Collect Configuration -->
+                <div id="nc-auto-collect-section" style="display:none;margin-top:20px;padding-top:20px;border-top:1px solid var(--nc-border, #dee2e6);">
+                    <h3 style="margin:0 0 15px;font-size:14px;color:var(--nc-accent);">
+                        <span class="dashicons dashicons-clock"></span>
+                        <?php _e('Coleta Automática', 'newsmast-curator'); ?>
+                    </h3>
+                    <div class="nc-form-group">
+                        <label class="nc-form-label" style="display:flex;align-items:center;gap:10px;">
+                            <input type="checkbox" id="nc-source-auto-collect" name="auto_collect">
+                            <?php _e('Habilitar coleta automática para esta fonte', 'newsmast-curator'); ?>
+                        </label>
+                        <span class="nc-form-help"><?php _e('Quando habilitado, o sistema coletará novos itens automaticamente no intervalo configurado.', 'newsmast-curator'); ?></span>
+                    </div>
+                    <div class="nc-form-group" id="nc-collect-interval-group" style="display:none;">
+                        <label class="nc-form-label"><?php _e('Intervalo de Coleta', 'newsmast-curator'); ?></label>
+                        <select id="nc-source-collect-interval" name="collect_interval" class="nc-form-control">
+                            <option value="every_15_minutes"><?php _e('A cada 15 minutos', 'newsmast-curator'); ?></option>
+                            <option value="every_30_minutes"><?php _e('A cada 30 minutos', 'newsmast-curator'); ?></option>
+                            <option value="hourly" selected><?php _e('A cada hora', 'newsmast-curator'); ?></option>
+                            <option value="every_6_hours"><?php _e('A cada 6 horas', 'newsmast-curator'); ?></option>
+                            <option value="every_12_hours"><?php _e('A cada 12 horas', 'newsmast-curator'); ?></option>
+                            <option value="daily"><?php _e('Diariamente', 'newsmast-curator'); ?></option>
+                        </select>
+                        <span class="nc-form-help"><?php _e('Com que frequência o sistema verificará novos itens nesta fonte.', 'newsmast-curator'); ?></span>
+                    </div>
+                </div>
             </form>
         </div>
         <div class="nc-modal-footer">
@@ -199,15 +226,20 @@
                     <span style="background:#298E7E;color:white;padding:3px 10px;border-radius:4px;font-size:12px;">Tainacan</span>
                     <?php _e('Repositórios Tainacan', 'newsmast-curator'); ?>
                 </h3>
-                <p><?php _e('Para coletar itens de acervos digitais que usam o plugin Tainacan.', 'newsmast-curator'); ?></p>
+                <p><?php _e('Para coletar itens de acervos digitais que usam o plugin Tainacan. Permite busca por assunto específico.', 'newsmast-curator'); ?></p>
                 <div class="nc-help-example">
                     <strong><?php _e('Exemplo:', 'newsmast-curator'); ?></strong><br>
-                    <code>URL: https://acervo.exemplo.com.br</code><br>
-                    <code>ID da Coleção: 123</code>
+                    <code>URL: https://brasiliana.museus.gov.br</code><br>
+                    <code>ID da Coleção: 5</code><br>
+                    <code><?php _e('Termos de Busca: indígena', 'newsmast-curator'); ?></code>
                 </div>
                 <p class="nc-help-tip">
                     <span class="dashicons dashicons-info" style="color:var(--nc-accent);"></span>
                     <?php _e('O ID da coleção está na URL do admin do Tainacan: /admin/#/collections/123/items', 'newsmast-curator'); ?>
+                </p>
+                <p class="nc-help-tip">
+                    <span class="dashicons dashicons-search" style="color:var(--nc-accent);"></span>
+                    <?php _e('Dica: crie várias fontes do mesmo acervo com termos de busca diferentes para curar por assuntos específicos (ex: "indígena", "quilombo", "patrimônio imaterial").', 'newsmast-curator'); ?>
                 </p>
             </div>
 
@@ -224,6 +256,11 @@
 jQuery(document).ready(function($) {
     NC.loadSources();
 
+    // Toggle auto-collect
+    $('#nc-source-auto-collect').on('change', function() {
+        $('#nc-collect-interval-group').toggle(this.checked);
+    });
+
     // Carregar campos dinâmicos e instruções ao mudar tipo
     $('#nc-source-type').on('change', function() {
         const type = $(this).val();
@@ -231,11 +268,13 @@ jQuery(document).ready(function($) {
             $('#nc-connector-instructions').html('');
             $('#nc-config-fields').html('');
             $('#nc-url-group').hide();
+            $('#nc-auto-collect-section').hide();
             return;
         }
 
-        // Mostrar campo de URL
+        // Mostrar campo de URL e seção auto-collect
         $('#nc-url-group').show();
+        $('#nc-auto-collect-section').show();
 
         let instructions = '';
         let fields = '';
@@ -355,15 +394,16 @@ jQuery(document).ready(function($) {
                         <strong>Configurando fonte Tainacan</strong>
                     </div>
                     <div class="nc-connector-info-body">
-                        <p>O conector Tainacan coleta itens de acervos digitais que usam o plugin Tainacan no WordPress.</p>
+                        <p>O conector Tainacan coleta itens de acervos digitais que usam o plugin Tainacan no WordPress. Permite curadoria por assunto usando termos de busca.</p>
                         <div class="nc-connector-steps">
                             <div class="nc-step"><span class="nc-step-num">1</span> Informe a URL do site que tem o Tainacan instalado</div>
                             <div class="nc-step"><span class="nc-step-num">2</span> Informe o ID numérico da coleção desejada</div>
-                            <div class="nc-step"><span class="nc-step-num">3</span> Para encontrar o ID: abra a coleção no admin do Tainacan e veja o número na URL</div>
+                            <div class="nc-step"><span class="nc-step-num">3</span> Informe termos de busca para filtrar por assunto (ex: indígena, quilombo)</div>
+                            <div class="nc-step"><span class="nc-step-num">4</span> Clique "Testar" para verificar se a busca retorna resultados antes de salvar</div>
                         </div>
                         <div class="nc-connector-tip">
                             <span class="dashicons dashicons-lightbulb"></span>
-                            <span>No admin do Tainacan, a URL da coleção contém o ID: <em>/admin/#/collections/<strong>123</strong>/items</em></span>
+                            <span>Crie várias fontes do mesmo acervo com termos diferentes para curar por assuntos específicos!</span>
                         </div>
                     </div>
                 </div>`;
@@ -374,6 +414,22 @@ jQuery(document).ready(function($) {
                     <input type="number" name="config[collection_id]" class="nc-form-control" required
                            placeholder="Ex: 123">
                     <span class="nc-form-help">Número de identificação da coleção. Encontrado na URL do admin do Tainacan.</span>
+                </div>
+                <div class="nc-form-group">
+                    <label class="nc-form-label">
+                        <span class="dashicons dashicons-search" style="font-size:16px;width:16px;height:16px;vertical-align:middle;color:var(--nc-accent);"></span>
+                        Termos de Busca (curadoria por assunto)
+                    </label>
+                    <div style="display:flex;gap:8px;">
+                        <input type="text" name="config[search_terms]" id="nc-tainacan-search-terms" class="nc-form-control" style="flex:1;"
+                               placeholder="Ex: indígena, quilombo, patrimônio imaterial...">
+                        <button type="button" class="nc-button nc-button-secondary" onclick="NC.testTainacanSearch()" id="nc-btn-test-search">
+                            <span class="dashicons dashicons-search"></span>
+                            Testar
+                        </button>
+                    </div>
+                    <span class="nc-form-help">Filtra itens por palavras-chave no acervo. Deixe vazio para coletar todos os itens da coleção. <strong>Use o botão "Testar" para verificar se os termos retornam resultados antes de salvar.</strong></span>
+                    <div id="nc-tainacan-search-result" style="margin-top:8px;"></div>
                 </div>
                 <div class="nc-form-group">
                     <label class="nc-form-label">Itens por Coleta</label>
@@ -414,7 +470,7 @@ NC.loadSources = function() {
             return;
         }
 
-        let html = '<table class="nc-table"><thead><tr><th>Nome</th><th>Tipo</th><th>URL</th><th>Status</th><th>Última Coleta</th><th>Ações</th></tr></thead><tbody>';
+        let html = '<table class="nc-table"><thead><tr><th>Nome</th><th>Tipo</th><th>URL</th><th>Filtro</th><th>Status</th><th>Coleta Auto</th><th>Última Coleta</th><th>Ações</th></tr></thead><tbody>';
         sources.forEach(s => {
             const statusBadge = s.status === 'active' ? 'nc-badge-success' : s.status === 'error' ? 'nc-badge-danger' : 'nc-badge-warning';
             const statusLabel = s.status === 'active' ? 'Ativo' : s.status === 'error' ? 'Erro' : 'Inativo';
@@ -424,11 +480,26 @@ NC.loadSources = function() {
             const lastCollection = s.last_collection ? new Date(s.last_collection).toLocaleString('pt-BR') : 'Nunca';
             const urlDisplay = s.url.length > 40 ? s.url.substring(0, 40) + '...' : s.url;
 
+            const intervalLabels = {
+                'every_15_minutes': '15min', 'every_30_minutes': '30min', 'hourly': '1h',
+                'every_6_hours': '6h', 'every_12_hours': '12h', 'daily': '24h'
+            };
+            const autoCollectBadge = s.auto_collect
+                ? `<span class="nc-badge nc-badge-success" style="font-size:10px;" title="Coleta automática a cada ${intervalLabels[s.collect_interval] || s.collect_interval}"><span class="dashicons dashicons-clock" style="font-size:12px;width:12px;height:12px;vertical-align:middle;"></span> ${intervalLabels[s.collect_interval] || s.collect_interval}</span>`
+                : '<span class="nc-badge nc-badge-warning" style="font-size:10px;">Manual</span>';
+
+            const searchTerms = (s.config && s.config.search_terms) ? s.config.search_terms : '';
+            const filterDisplay = searchTerms
+                ? `<span class="nc-badge nc-badge-info" style="font-size:10px;" title="Busca: ${NC.escapeHtml(searchTerms)}"><span class="dashicons dashicons-search" style="font-size:12px;width:12px;height:12px;vertical-align:middle;"></span> ${NC.escapeHtml(searchTerms.length > 20 ? searchTerms.substring(0, 20) + '...' : searchTerms)}</span>`
+                : '<span style="color:var(--nc-text-light);font-size:12px;">—</span>';
+
             html += `<tr>
-                <td><strong>${s.name}</strong></td>
+                <td><strong>${NC.escapeHtml(s.name)}</strong></td>
                 <td><span class="nc-badge nc-badge-info" style="font-size:10px;">${typeLabel}</span></td>
-                <td><a href="${s.url}" target="_blank" style="color:var(--nc-accent);">${urlDisplay}</a></td>
+                <td><a href="${NC.escapeHtml(s.url)}" target="_blank" style="color:var(--nc-accent);">${NC.escapeHtml(urlDisplay)}</a></td>
+                <td>${filterDisplay}</td>
                 <td><span class="nc-badge ${statusBadge}">${statusLabel}</span></td>
+                <td>${autoCollectBadge}</td>
                 <td><small>${lastCollection}</small></td>
                 <td class="nc-table-actions">
                     <button class="nc-button nc-button-secondary" onclick="NC.editSource(${s.id})" title="Editar esta fonte">
@@ -459,6 +530,9 @@ NC.showAddSourceModal = function() {
     jQuery('#nc-connector-instructions').html('');
     jQuery('#nc-config-fields').html('');
     jQuery('#nc-url-group').hide();
+    jQuery('#nc-auto-collect-section').hide();
+    jQuery('#nc-collect-interval-group').hide();
+    jQuery('#nc-source-auto-collect').prop('checked', false);
     NC.openModal('nc-source-modal');
 };
 
@@ -473,7 +547,9 @@ NC.saveSource = function() {
         name: jQuery('#nc-source-name').val(),
         connector_type: jQuery('#nc-source-type').val(),
         url: jQuery('#nc-source-url').val(),
-        config: {}
+        config: {},
+        auto_collect: jQuery('#nc-source-auto-collect').is(':checked') ? 1 : 0,
+        collect_interval: jQuery('#nc-source-collect-interval').val()
     };
 
     // Pegar campos de config
@@ -522,6 +598,11 @@ NC.editSource = function(id) {
                     }
                 });
             }
+
+            // Fill auto-collect fields
+            jQuery('#nc-source-auto-collect').prop('checked', source.auto_collect);
+            jQuery('#nc-source-collect-interval').val(source.collect_interval || 'hourly');
+            jQuery('#nc-collect-interval-group').toggle(!!source.auto_collect);
         }, 100);
 
         NC.openModal('nc-source-modal');
@@ -557,6 +638,63 @@ NC.deleteSource = function(id) {
         NC.loadSources();
     }).catch(error => {
         NC.showNotice('error', 'Erro ao remover: ' + (error.message || 'Erro desconhecido'));
+    });
+};
+
+/**
+ * Testa busca no acervo Tainacan via backend (evita bloqueio CORS)
+ */
+NC.testTainacanSearch = function() {
+    var url = jQuery('#nc-source-url').val().replace(/\/+$/, '');
+    var collectionId = jQuery('#nc-config-fields [name="config[collection_id]"]').val();
+    var searchTerms = jQuery('#nc-tainacan-search-terms').val().trim();
+    var $result = jQuery('#nc-tainacan-search-result');
+    var $btn = jQuery('#nc-btn-test-search');
+
+    if (!url || !collectionId) {
+        $result.html('<div class="nc-notice nc-notice-warning" style="margin:0;padding:8px 12px;font-size:12px;"><span class="dashicons dashicons-warning"></span> Preencha a URL e o ID da coleção antes de testar.</div>');
+        return;
+    }
+
+    $btn.prop('disabled', true).find('.dashicons').removeClass('dashicons-search').addClass('dashicons-update nc-spin');
+    $result.html('<div style="font-size:12px;color:var(--nc-text-light);"><span class="dashicons dashicons-update nc-spin" style="font-size:14px;width:14px;height:14px;vertical-align:middle;"></span> Consultando acervo Tainacan...</div>');
+
+    wp.apiFetch({
+        path: ncData.apiUrl + '/sources/test-tainacan',
+        method: 'POST',
+        data: {
+            url: url,
+            collection_id: collectionId,
+            search_terms: searchTerms
+        }
+    }).then(function(result) {
+        if (result.success) {
+            var html = '<div class="nc-notice nc-notice-success" style="margin:0;padding:10px 12px;font-size:12px;">';
+            html += '<span class="dashicons dashicons-yes-alt"></span> ';
+            html += NC.escapeHtml(result.message);
+            html += '</div>';
+
+            // Mostrar amostra de itens
+            if (result.sample_items && result.sample_items.length > 0) {
+                html += '<div style="margin-top:8px;padding:10px;background:var(--nc-bg-alt,#f8f9fa);border-radius:6px;font-size:12px;">';
+                html += '<strong style="font-size:11px;color:var(--nc-text-light);text-transform:uppercase;">Amostra dos primeiros itens:</strong>';
+                html += '<ul style="margin:6px 0 0;padding-left:18px;list-style:disc;">';
+                result.sample_items.forEach(function(item) {
+                    var title = item.title || '(sem título)';
+                    if (title.length > 80) title = title.substring(0, 80) + '...';
+                    html += '<li>' + NC.escapeHtml(title) + '</li>';
+                });
+                html += '</ul></div>';
+            }
+
+            $result.html(html);
+        } else {
+            $result.html('<div class="nc-notice nc-notice-warning" style="margin:0;padding:8px 12px;font-size:12px;"><span class="dashicons dashicons-warning"></span> ' + NC.escapeHtml(result.message) + '</div>');
+        }
+    }).catch(function(error) {
+        $result.html('<div class="nc-notice nc-notice-error" style="margin:0;padding:8px 12px;font-size:12px;"><span class="dashicons dashicons-dismiss"></span> Erro: ' + NC.escapeHtml(error.message || 'Erro desconhecido') + '</div>');
+    }).finally(function() {
+        $btn.prop('disabled', false).find('.dashicons').removeClass('dashicons-update nc-spin').addClass('dashicons-search');
     });
 };
 </script>
