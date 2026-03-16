@@ -5,6 +5,7 @@ class Tainacan_Connector implements Connector_Interface {
     private $api_url;
     private $config;
     private $last_error = '';
+    private $total_items = 0;
 
     public function connect($config) {
         $this->config = $config;
@@ -21,13 +22,23 @@ class Tainacan_Connector implements Connector_Interface {
 
     public function collect() {
         $this->last_error = '';
+        $this->total_items = 0;
         $per_page = $this->config['per_page'] ?? 20;
         $orderby = $this->config['orderby'] ?? 'date';
-        $url = add_query_arg([
+
+        $args = [
             'perpage' => $per_page,
             'order'   => 'DESC',
             'orderby' => $orderby,
-        ], $this->api_url);
+        ];
+
+        // Filtro de busca por termos/assunto
+        $search_terms = trim($this->config['search_terms'] ?? '');
+        if (!empty($search_terms)) {
+            $args['search'] = $search_terms;
+        }
+
+        $url = add_query_arg($args, $this->api_url);
 
         $response = wp_remote_get($url, [
             'timeout' => 30,
@@ -48,6 +59,9 @@ class Tainacan_Connector implements Connector_Interface {
             return [];
         }
 
+        // Captura total de itens do header X-WP-Total
+        $this->total_items = (int) wp_remote_retrieve_header($response, 'X-WP-Total');
+
         $data = json_decode(wp_remote_retrieve_body($response), true);
         if (!is_array($data)) {
             $this->last_error = 'Invalid JSON response';
@@ -60,9 +74,15 @@ class Tainacan_Connector implements Connector_Interface {
         foreach ($tainacan_items as $item) {
             $image_url = $this->extract_image_url($item);
 
+            // Usa denominação como título quando title está vazio (comum no Tainacan)
+            $title = wp_strip_all_tags($item['title'] ?? '');
+            if (empty($title)) {
+                $title = $this->extract_denomination($item);
+            }
+
             $items[] = [
                 'external_id' => 'tainacan_' . $item['id'],
-                'title' => wp_strip_all_tags($item['title'] ?? ''),
+                'title' => $title,
                 'content' => wp_kses_post($item['description'] ?? ''),
                 'excerpt' => $this->extract_excerpt($item),
                 'url' => $item['url'] ?? '',
@@ -74,6 +94,22 @@ class Tainacan_Connector implements Connector_Interface {
         }
 
         return $items;
+    }
+
+    /**
+     * Extrai denominação dos metadados (usado como fallback para título)
+     */
+    private function extract_denomination($item) {
+        $metadata = $item['metadata'] ?? [];
+        foreach ($metadata as $meta) {
+            if (!empty($meta['value_as_string']) && isset($meta['name'])) {
+                $name = strtolower($meta['name']);
+                if ($name === 'denominação' || $name === 'denominacao') {
+                    return wp_strip_all_tags($meta['value_as_string']);
+                }
+            }
+        }
+        return '';
     }
 
     /**
@@ -163,6 +199,13 @@ class Tainacan_Connector implements Connector_Interface {
                 'label' => __('ID da Coleção', 'newsmast-curator'),
                 'required' => true,
             ],
+            'search_terms' => [
+                'type' => 'text',
+                'label' => __('Termos de Busca (assunto)', 'newsmast-curator'),
+                'required' => false,
+                'placeholder' => __('Ex: indígena, quilombo, patrimônio imaterial...', 'newsmast-curator'),
+                'help' => __('Filtra itens por palavras-chave. Deixe vazio para coletar todos os itens.', 'newsmast-curator'),
+            ],
             'per_page' => [
                 'type' => 'number',
                 'label' => __('Itens por página', 'newsmast-curator'),
@@ -171,18 +214,49 @@ class Tainacan_Connector implements Connector_Interface {
         ];
     }
 
+    /**
+     * Retorna o total de itens encontrados na última coleta (via header X-WP-Total)
+     */
+    public function get_total_items() {
+        return $this->total_items;
+    }
+
     public function get_last_error() {
         return $this->last_error;
     }
 
     public function test_connection() {
         $items = $this->collect();
-        $message = count($items) > 0
-            ? sprintf(__('%d itens encontrados', 'newsmast-curator'), count($items))
-            : ($this->last_error ?: __('Nenhum item encontrado', 'newsmast-curator'));
+        $search = trim($this->config['search_terms'] ?? '');
+        $total = $this->total_items;
+
+        if (count($items) > 0) {
+            if (!empty($search)) {
+                $message = sprintf(
+                    __('%d itens encontrados para "%s" (mostrando %d)', 'newsmast-curator'),
+                    $total, $search, count($items)
+                );
+            } else {
+                $message = sprintf(
+                    __('%d itens encontrados no acervo (mostrando %d)', 'newsmast-curator'),
+                    $total, count($items)
+                );
+            }
+        } else {
+            if (!empty($search)) {
+                $message = $this->last_error ?: sprintf(
+                    __('Nenhum item encontrado para "%s"', 'newsmast-curator'),
+                    $search
+                );
+            } else {
+                $message = $this->last_error ?: __('Nenhum item encontrado', 'newsmast-curator');
+            }
+        }
+
         return [
             'success' => count($items) > 0,
             'message' => $message,
+            'total_items' => $total,
             'sample_items' => array_slice($items, 0, 3),
         ];
     }

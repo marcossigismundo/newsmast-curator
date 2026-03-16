@@ -226,15 +226,20 @@
                     <span style="background:#298E7E;color:white;padding:3px 10px;border-radius:4px;font-size:12px;">Tainacan</span>
                     <?php _e('Repositórios Tainacan', 'newsmast-curator'); ?>
                 </h3>
-                <p><?php _e('Para coletar itens de acervos digitais que usam o plugin Tainacan.', 'newsmast-curator'); ?></p>
+                <p><?php _e('Para coletar itens de acervos digitais que usam o plugin Tainacan. Permite busca por assunto específico.', 'newsmast-curator'); ?></p>
                 <div class="nc-help-example">
                     <strong><?php _e('Exemplo:', 'newsmast-curator'); ?></strong><br>
-                    <code>URL: https://acervo.exemplo.com.br</code><br>
-                    <code>ID da Coleção: 123</code>
+                    <code>URL: https://brasiliana.museus.gov.br</code><br>
+                    <code>ID da Coleção: 5</code><br>
+                    <code><?php _e('Termos de Busca: indígena', 'newsmast-curator'); ?></code>
                 </div>
                 <p class="nc-help-tip">
                     <span class="dashicons dashicons-info" style="color:var(--nc-accent);"></span>
                     <?php _e('O ID da coleção está na URL do admin do Tainacan: /admin/#/collections/123/items', 'newsmast-curator'); ?>
+                </p>
+                <p class="nc-help-tip">
+                    <span class="dashicons dashicons-search" style="color:var(--nc-accent);"></span>
+                    <?php _e('Dica: crie várias fontes do mesmo acervo com termos de busca diferentes para curar por assuntos específicos (ex: "indígena", "quilombo", "patrimônio imaterial").', 'newsmast-curator'); ?>
                 </p>
             </div>
 
@@ -389,15 +394,16 @@ jQuery(document).ready(function($) {
                         <strong>Configurando fonte Tainacan</strong>
                     </div>
                     <div class="nc-connector-info-body">
-                        <p>O conector Tainacan coleta itens de acervos digitais que usam o plugin Tainacan no WordPress.</p>
+                        <p>O conector Tainacan coleta itens de acervos digitais que usam o plugin Tainacan no WordPress. Permite curadoria por assunto usando termos de busca.</p>
                         <div class="nc-connector-steps">
                             <div class="nc-step"><span class="nc-step-num">1</span> Informe a URL do site que tem o Tainacan instalado</div>
                             <div class="nc-step"><span class="nc-step-num">2</span> Informe o ID numérico da coleção desejada</div>
-                            <div class="nc-step"><span class="nc-step-num">3</span> Para encontrar o ID: abra a coleção no admin do Tainacan e veja o número na URL</div>
+                            <div class="nc-step"><span class="nc-step-num">3</span> Informe termos de busca para filtrar por assunto (ex: indígena, quilombo)</div>
+                            <div class="nc-step"><span class="nc-step-num">4</span> Clique "Testar" para verificar se a busca retorna resultados antes de salvar</div>
                         </div>
                         <div class="nc-connector-tip">
                             <span class="dashicons dashicons-lightbulb"></span>
-                            <span>No admin do Tainacan, a URL da coleção contém o ID: <em>/admin/#/collections/<strong>123</strong>/items</em></span>
+                            <span>Crie várias fontes do mesmo acervo com termos diferentes para curar por assuntos específicos!</span>
                         </div>
                     </div>
                 </div>`;
@@ -408,6 +414,22 @@ jQuery(document).ready(function($) {
                     <input type="number" name="config[collection_id]" class="nc-form-control" required
                            placeholder="Ex: 123">
                     <span class="nc-form-help">Número de identificação da coleção. Encontrado na URL do admin do Tainacan.</span>
+                </div>
+                <div class="nc-form-group">
+                    <label class="nc-form-label">
+                        <span class="dashicons dashicons-search" style="font-size:16px;width:16px;height:16px;vertical-align:middle;color:var(--nc-accent);"></span>
+                        Termos de Busca (curadoria por assunto)
+                    </label>
+                    <div style="display:flex;gap:8px;">
+                        <input type="text" name="config[search_terms]" id="nc-tainacan-search-terms" class="nc-form-control" style="flex:1;"
+                               placeholder="Ex: indígena, quilombo, patrimônio imaterial...">
+                        <button type="button" class="nc-button nc-button-secondary" onclick="NC.testTainacanSearch()" id="nc-btn-test-search">
+                            <span class="dashicons dashicons-search"></span>
+                            Testar
+                        </button>
+                    </div>
+                    <span class="nc-form-help">Filtra itens por palavras-chave no acervo. Deixe vazio para coletar todos os itens da coleção. <strong>Use o botão "Testar" para verificar se os termos retornam resultados antes de salvar.</strong></span>
+                    <div id="nc-tainacan-search-result" style="margin-top:8px;"></div>
                 </div>
                 <div class="nc-form-group">
                     <label class="nc-form-label">Itens por Coleta</label>
@@ -448,7 +470,7 @@ NC.loadSources = function() {
             return;
         }
 
-        let html = '<table class="nc-table"><thead><tr><th>Nome</th><th>Tipo</th><th>URL</th><th>Status</th><th>Coleta Auto</th><th>Última Coleta</th><th>Ações</th></tr></thead><tbody>';
+        let html = '<table class="nc-table"><thead><tr><th>Nome</th><th>Tipo</th><th>URL</th><th>Filtro</th><th>Status</th><th>Coleta Auto</th><th>Última Coleta</th><th>Ações</th></tr></thead><tbody>';
         sources.forEach(s => {
             const statusBadge = s.status === 'active' ? 'nc-badge-success' : s.status === 'error' ? 'nc-badge-danger' : 'nc-badge-warning';
             const statusLabel = s.status === 'active' ? 'Ativo' : s.status === 'error' ? 'Erro' : 'Inativo';
@@ -466,10 +488,16 @@ NC.loadSources = function() {
                 ? `<span class="nc-badge nc-badge-success" style="font-size:10px;" title="Coleta automática a cada ${intervalLabels[s.collect_interval] || s.collect_interval}"><span class="dashicons dashicons-clock" style="font-size:12px;width:12px;height:12px;vertical-align:middle;"></span> ${intervalLabels[s.collect_interval] || s.collect_interval}</span>`
                 : '<span class="nc-badge nc-badge-warning" style="font-size:10px;">Manual</span>';
 
+            const searchTerms = (s.config && s.config.search_terms) ? s.config.search_terms : '';
+            const filterDisplay = searchTerms
+                ? `<span class="nc-badge nc-badge-info" style="font-size:10px;" title="Busca: ${NC.escapeHtml(searchTerms)}"><span class="dashicons dashicons-search" style="font-size:12px;width:12px;height:12px;vertical-align:middle;"></span> ${NC.escapeHtml(searchTerms.length > 20 ? searchTerms.substring(0, 20) + '...' : searchTerms)}</span>`
+                : '<span style="color:var(--nc-text-light);font-size:12px;">—</span>';
+
             html += `<tr>
                 <td><strong>${NC.escapeHtml(s.name)}</strong></td>
                 <td><span class="nc-badge nc-badge-info" style="font-size:10px;">${typeLabel}</span></td>
                 <td><a href="${NC.escapeHtml(s.url)}" target="_blank" style="color:var(--nc-accent);">${NC.escapeHtml(urlDisplay)}</a></td>
+                <td>${filterDisplay}</td>
                 <td><span class="nc-badge ${statusBadge}">${statusLabel}</span></td>
                 <td>${autoCollectBadge}</td>
                 <td><small>${lastCollection}</small></td>
@@ -610,6 +638,100 @@ NC.deleteSource = function(id) {
         NC.loadSources();
     }).catch(error => {
         NC.showNotice('error', 'Erro ao remover: ' + (error.message || 'Erro desconhecido'));
+    });
+};
+
+/**
+ * Testa busca no acervo Tainacan antes de salvar a fonte
+ * Faz a requisição diretamente à API pública do Tainacan (não precisa do backend)
+ */
+NC.testTainacanSearch = function() {
+    var url = jQuery('#nc-source-url').val().replace(/\/+$/, '');
+    var collectionId = jQuery('#nc-config-fields [name="config[collection_id]"]').val();
+    var searchTerms = jQuery('#nc-tainacan-search-terms').val().trim();
+    var $result = jQuery('#nc-tainacan-search-result');
+    var $btn = jQuery('#nc-btn-test-search');
+
+    if (!url || !collectionId) {
+        $result.html('<div class="nc-notice nc-notice-warning" style="margin:0;padding:8px 12px;font-size:12px;"><span class="dashicons dashicons-warning"></span> Preencha a URL e o ID da coleção antes de testar.</div>');
+        return;
+    }
+
+    $btn.prop('disabled', true).find('.dashicons').removeClass('dashicons-search').addClass('dashicons-update nc-spin');
+    $result.html('<div style="font-size:12px;color:var(--nc-text-light);"><span class="dashicons dashicons-update nc-spin" style="font-size:14px;width:14px;height:14px;vertical-align:middle;"></span> Consultando acervo Tainacan...</div>');
+
+    var apiUrl = url + '/wp-json/tainacan/v2/collection/' + collectionId + '/items?perpage=3&order=DESC&orderby=date';
+    if (searchTerms) {
+        apiUrl += '&search=' + encodeURIComponent(searchTerms);
+    }
+
+    jQuery.ajax({
+        url: apiUrl,
+        method: 'GET',
+        timeout: 30000,
+        dataType: 'json',
+        success: function(data, textStatus, xhr) {
+            var total = parseInt(xhr.getResponseHeader('X-WP-Total')) || 0;
+            var items = (data && data.items) ? data.items : [];
+
+            if (total > 0) {
+                var html = '<div class="nc-notice nc-notice-success" style="margin:0;padding:10px 12px;font-size:12px;">';
+                html += '<span class="dashicons dashicons-yes-alt"></span> ';
+                if (searchTerms) {
+                    html += '<strong>' + total + ' itens</strong> encontrados para "<strong>' + NC.escapeHtml(searchTerms) + '</strong>"';
+                } else {
+                    html += '<strong>' + total + ' itens</strong> encontrados no acervo';
+                }
+                html += '</div>';
+
+                // Mostrar amostra de itens
+                if (items.length > 0) {
+                    html += '<div style="margin-top:8px;padding:10px;background:var(--nc-bg-alt,#f8f9fa);border-radius:6px;font-size:12px;">';
+                    html += '<strong style="font-size:11px;color:var(--nc-text-light);text-transform:uppercase;">Amostra dos primeiros itens:</strong>';
+                    html += '<ul style="margin:6px 0 0;padding-left:18px;list-style:disc;">';
+                    items.forEach(function(item) {
+                        var title = item.title || '';
+                        // Tenta denominação se título vazio
+                        if (!title && item.metadata) {
+                            for (var key in item.metadata) {
+                                var meta = item.metadata[key];
+                                if (meta && meta.name && (meta.name.toLowerCase() === 'denominação' || meta.name.toLowerCase() === 'denominacao') && meta.value_as_string) {
+                                    title = meta.value_as_string;
+                                    break;
+                                }
+                            }
+                        }
+                        title = title || '(sem título)';
+                        // Strip HTML tags
+                        title = jQuery('<div>').html(title).text();
+                        if (title.length > 80) title = title.substring(0, 80) + '...';
+                        html += '<li>' + NC.escapeHtml(title) + '</li>';
+                    });
+                    html += '</ul></div>';
+                }
+
+                $result.html(html);
+            } else {
+                var msg = searchTerms
+                    ? 'Nenhum item encontrado para "<strong>' + NC.escapeHtml(searchTerms) + '</strong>". Tente outros termos.'
+                    : 'Nenhum item encontrado nesta coleção. Verifique o ID.';
+                $result.html('<div class="nc-notice nc-notice-warning" style="margin:0;padding:8px 12px;font-size:12px;"><span class="dashicons dashicons-warning"></span> ' + msg + '</div>');
+            }
+        },
+        error: function(xhr) {
+            var msg = 'Erro ao consultar a API Tainacan. ';
+            if (xhr.status === 404) {
+                msg += 'Coleção não encontrada (ID: ' + collectionId + '). Verifique a URL e o ID.';
+            } else if (xhr.status === 0) {
+                msg += 'Não foi possível conectar. Verifique a URL.';
+            } else {
+                msg += 'HTTP ' + xhr.status;
+            }
+            $result.html('<div class="nc-notice nc-notice-error" style="margin:0;padding:8px 12px;font-size:12px;"><span class="dashicons dashicons-dismiss"></span> ' + msg + '</div>');
+        },
+        complete: function() {
+            $btn.prop('disabled', false).find('.dashicons').removeClass('dashicons-update nc-spin').addClass('dashicons-search');
+        }
     });
 };
 </script>
