@@ -39,6 +39,16 @@
     </button>
 </div>
 
+<div class="nc-filters" style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+    <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--nc-text-light);">
+        <span class="dashicons dashicons-filter" style="font-size:16px;"></span>
+        <?php _e('Fonte:', 'newsmast-curator'); ?>
+    </label>
+    <select id="nc-filter-source" class="nc-form-control" style="width:auto;min-width:200px;max-width:350px;" onchange="NC.loadItems(NC._currentCuratedTab)">
+        <option value=""><?php _e('Todas as fontes', 'newsmast-curator'); ?></option>
+    </select>
+</div>
+
 <div class="nc-card">
     <div class="nc-card-header" id="nc-select-all-header">
         <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
@@ -59,6 +69,18 @@ jQuery(document).ready(function($) {
     wp.apiFetch({path: ncData.apiUrl + '/items/stats'}).then(function(stats) {
         $('#nc-uncurated-count').text(stats.uncurated || 0);
         $('#nc-curated-count').text(stats.curated || 0);
+    });
+
+    // Load sources for filter dropdown
+    wp.apiFetch({path: ncData.apiUrl + '/sources'}).then(function(data) {
+        var $sel = $('#nc-filter-source');
+        (data.sources || data || []).forEach(function(s) {
+            var label = NC.escapeHtml(s.name);
+            if (s.config && s.config.search_terms) {
+                label += ' (' + NC.escapeHtml(s.config.search_terms) + ')';
+            }
+            $sel.append('<option value="' + s.id + '">' + label + '</option>');
+        });
     });
 
     NC._viewMode = localStorage.getItem('nc_view_mode') || 'grid';
@@ -97,7 +119,13 @@ NC.loadItems = function(curated) {
     jQuery('#nc-select-all-header input[type="checkbox"]').prop('checked', false);
     jQuery('#nc-items-list').html('<div class="nc-loading"><div class="nc-spinner"></div></div>');
 
-    wp.apiFetch({path: ncData.apiUrl + '/items?curated=' + curated + '&per_page=50'}).then(function(data) {
+    var sourceFilter = jQuery('#nc-filter-source').val();
+    var apiPath = ncData.apiUrl + '/items?curated=' + curated + '&per_page=50';
+    if (sourceFilter) {
+        apiPath += '&source_id=' + sourceFilter;
+    }
+
+    wp.apiFetch({path: apiPath}).then(function(data) {
         if (!data.items || data.items.length === 0) {
             var emptyMsg = curated === 0 ?
                 NC.__('no_new_items', 'Nenhum item novo para curadoria. Execute uma coleta para trazer novos itens.') :
