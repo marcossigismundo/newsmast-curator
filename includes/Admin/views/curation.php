@@ -39,12 +39,12 @@
     </button>
 </div>
 
-<div class="nc-filters" style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
-    <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--nc-text-light);">
-        <span class="dashicons dashicons-filter" style="font-size:16px;"></span>
+<div class="nc-filters">
+    <label>
+        <span class="dashicons dashicons-filter"></span>
         <?php _e('Fonte:', 'newsmast-curator'); ?>
     </label>
-    <select id="nc-filter-source" class="nc-form-control" style="width:auto;min-width:200px;max-width:350px;" onchange="NC.loadItems(NC._currentCuratedTab)">
+    <select id="nc-filter-source" class="nc-form-control" onchange="NC.loadItems(NC._currentCuratedTab)">
         <option value=""><?php _e('Todas as fontes', 'newsmast-curator'); ?></option>
     </select>
 </div>

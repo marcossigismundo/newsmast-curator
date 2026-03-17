@@ -955,6 +955,42 @@ select.nc-form-control {
     border-bottom-color: var(--nc-accent);
 }
 
+/* Filters bar */
+.nc-filters {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+    padding: 10px 16px;
+    background: var(--nc-white);
+    border: 1px solid var(--nc-border);
+    border-radius: var(--nc-radius);
+}
+
+.nc-filters label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--nc-text-light);
+    white-space: nowrap;
+}
+
+.nc-filters label .dashicons {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+}
+
+.nc-filters select.nc-form-control {
+    width: auto;
+    min-width: 220px;
+    max-width: 400px;
+    padding: 8px 12px;
+    font-size: 13px;
+}
+
 /* ===========================
    Notices
    =========================== */
