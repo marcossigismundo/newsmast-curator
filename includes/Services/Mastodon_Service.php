@@ -49,7 +49,7 @@ class Mastodon_Service {
         return $this->make_request($endpoint, 'POST', $data);
     }
 
-    public function upload_media($file_path) {
+    public function upload_media($file_path, $description = '') {
         $endpoint = '/api/v1/media';
         $boundary = wp_generate_password(24);
 
@@ -58,6 +58,14 @@ class Mastodon_Service {
         $body .= 'Content-Disposition: form-data; name="file"; filename="' . basename($file_path) . "\"\r\n";
         $body .= "Content-Type: application/octet-stream\r\n\r\n";
         $body .= file_get_contents($file_path) . "\r\n";
+
+        // Alt text para acessibilidade (limite do Mastodon: 1500 caracteres)
+        if (!empty($description)) {
+            $body .= "--{$boundary}\r\n";
+            $body .= "Content-Disposition: form-data; name=\"description\"\r\n\r\n";
+            $body .= mb_substr($description, 0, 1500) . "\r\n";
+        }
+
         $body .= "--{$boundary}--\r\n";
 
         $response = wp_remote_post($this->api_base_url . $endpoint, [

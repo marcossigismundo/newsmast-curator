@@ -195,10 +195,13 @@ class Scheduler_Service {
             return [];
         }
 
+        // Monta alt text estruturado para acessibilidade
+        $alt_text = $this->build_image_alt_text($item);
+
         $this->logger->info('Preparando upload de imagem', [
             'related_type' => 'publication',
             'related_id' => $pub->get_id(),
-            'details' => sprintf('URL: %s | Local ID: %s', $image_url, $item->get_image_local_id() ?: 'N/A'),
+            'details' => sprintf('URL: %s | Local ID: %s | Alt: %d chars', $image_url, $item->get_image_local_id() ?: 'N/A', mb_strlen($alt_text)),
         ]);
 
         $tmp_file = null;
@@ -207,7 +210,7 @@ class Scheduler_Service {
             if ($item->get_image_local_id()) {
                 $local_path = get_attached_file($item->get_image_local_id());
                 if ($local_path && file_exists($local_path)) {
-                    $media_id = $mastodon_service->upload_media($local_path);
+                    $media_id = $mastodon_service->upload_media($local_path, $alt_text);
                     return $media_id ? [$media_id] : [];
                 }
             }
@@ -245,7 +248,7 @@ class Scheduler_Service {
                 'details' => sprintf('Tamanho: %s | Tipo: .%s', size_format(strlen($body)), $ext),
             ]);
 
-            $media_id = $mastodon_service->upload_media($tmp_file);
+            $media_id = $mastodon_service->upload_media($tmp_file, $alt_text);
             return $media_id ? [$media_id] : [];
         } catch (\Exception $e) {
             $this->logger->warning('Falha no upload de imagem, publicando sem mídia', [
@@ -260,6 +263,79 @@ class Scheduler_Service {
                 @unlink($tmp_file);
             }
         }
+    }
+
+    /**
+     * Monta texto alternativo estruturado para a imagem do item
+     *
+     * Formato:
+     *   Título do item
+     *   Autor: Nome do Autor
+     *   Descrição: Resumo do conteúdo
+     *   Fonte: URL original
+     *
+     * @param \NewsmastCurator\Models\Item $item
+     * @return string Alt text (máx 1500 chars, limite do Mastodon)
+     */
+    private function build_image_alt_text($item) {
+        $parts = [];
+
+        // Título
+        $title = wp_strip_all_tags($item->get_title());
+        if (!empty($title)) {
+            $parts[] = $title;
+        }
+
+        // Autor
+        $author = $item->get_author();
+        if (!empty($author)) {
+            $parts[] = sprintf(__('Autoria: %s', 'newsmast-curator'), $author);
+        }
+
+        // Descrição/resumo
+        $excerpt = wp_strip_all_tags($item->get_excerpt());
+        if (empty($excerpt)) {
+            $excerpt = wp_strip_all_tags($item->get_content());
+        }
+        if (!empty($excerpt)) {
+            $excerpt = wp_trim_words($excerpt, 60, '…');
+            $parts[] = $excerpt;
+        }
+
+        // Metadados Tainacan relevantes para acessibilidade
+        $metadata = $item->get_metadata();
+        if (is_array($metadata) && !empty($metadata)) {
+            $relevant_fields = [
+                'material-tecnica-2' => __('Material/Técnica', 'newsmast-curator'),
+                'dimensoes'          => __('Dimensões', 'newsmast-curator'),
+                'data-de-producao'   => __('Data de produção', 'newsmast-curator'),
+                'instalacao'         => __('Museu', 'newsmast-curator'),
+                'localizacao'        => __('Coleção', 'newsmast-curator'),
+            ];
+            foreach ($relevant_fields as $slug => $label) {
+                if (isset($metadata[$slug]) && !empty($metadata[$slug]['value_as_string'])) {
+                    $value = wp_strip_all_tags($metadata[$slug]['value_as_string']);
+                    if (!empty($value)) {
+                        $parts[] = "{$label}: {$value}";
+                    }
+                }
+            }
+        }
+
+        // Fonte
+        $url = $item->get_url();
+        if (!empty($url)) {
+            $parts[] = sprintf(__('Fonte: %s', 'newsmast-curator'), $url);
+        }
+
+        $alt_text = implode("\n", $parts);
+
+        // Limite do Mastodon: 1500 caracteres
+        if (mb_strlen($alt_text) > 1500) {
+            $alt_text = mb_substr($alt_text, 0, 1497) . '…';
+        }
+
+        return $alt_text;
     }
 
     private function is_locked() {
