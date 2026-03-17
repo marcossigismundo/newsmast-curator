@@ -307,6 +307,12 @@ jQuery(document).ready(function($) {
 
             fields = `
                 <div class="nc-form-group">
+                    <label class="nc-form-label">Páginas a coletar</label>
+                    <input type="number" name="config[max_pages]" class="nc-form-control" value="1" min="1" max="10"
+                           placeholder="1" style="width:100px;">
+                    <span class="nc-form-help">Número de páginas da listagem a coletar (1-10). Cada página tem ~30 itens.</span>
+                </div>
+                <div class="nc-form-group">
                     <label class="nc-form-label">Seletor do Container de Itens</label>
                     <input type="text" name="config[selector]" class="nc-form-control" value="li"
                            placeholder="li">

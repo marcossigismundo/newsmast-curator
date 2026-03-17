@@ -31,45 +31,60 @@ class Plone_Connector implements Connector_Interface {
 
     public function collect() {
         $this->last_error = '';
+        $max_pages = (int) ($this->config['max_pages'] ?? 1);
+        $max_pages = max(1, min($max_pages, 10)); // Limit 1-10 pages
+        $all_items = [];
 
-        $response = wp_remote_get($this->url, [
-            'timeout' => 30,
-            'sslverify' => true,
-            'user-agent' => 'Mozilla/5.0 (compatible; NewsmastCurator/1.0; +WordPress)',
-            'headers' => [
-                'Accept' => 'text/html,application/xhtml+xml',
-                'Accept-Language' => 'pt-BR,pt;q=0.9,en;q=0.5',
-            ],
-        ]);
+        for ($page = 0; $page < $max_pages; $page++) {
+            $url = $this->url;
+            if ($page > 0) {
+                // Plone uses b_start:int for pagination offset
+                $separator = (strpos($url, '?') === false) ? '?' : '&';
+                $url .= $separator . 'b_start:int=' . ($page * 30);
+            }
 
-        if (is_wp_error($response)) {
-            $this->last_error = 'HTTP request failed: ' . $response->get_error_message();
+            $response = wp_remote_get($url, [
+                'timeout' => 30,
+                'sslverify' => true,
+                'user-agent' => 'Mozilla/5.0 (compatible; NewsmastCurator/1.0; +WordPress)',
+                'headers' => [
+                    'Accept' => 'text/html,application/xhtml+xml',
+                    'Accept-Language' => 'pt-BR,pt;q=0.9,en;q=0.5',
+                ],
+            ]);
+
+            if (is_wp_error($response)) {
+                $this->last_error = 'HTTP request failed: ' . $response->get_error_message();
+                error_log('[NC Plone] ' . $this->last_error . ' | URL: ' . $url);
+                break;
+            }
+
+            $code = wp_remote_retrieve_response_code($response);
+            if ($code !== 200) {
+                $this->last_error = "HTTP {$code} response";
+                error_log('[NC Plone] ' . $this->last_error . ' | URL: ' . $url);
+                break;
+            }
+
+            $html = wp_remote_retrieve_body($response);
+            if (empty($html)) {
+                break;
+            }
+
+            $items = $this->parse_html($html);
+            if (empty($items)) {
+                break; // No more items on this page
+            }
+
+            $all_items = array_merge($all_items, $items);
+        }
+
+        if (empty($all_items)) {
+            $this->last_error = $this->last_error ?: 'No items found in HTML (check CSS selectors)';
             error_log('[NC Plone] ' . $this->last_error . ' | URL: ' . $this->url);
-            return [];
         }
 
-        $code = wp_remote_retrieve_response_code($response);
-        if ($code !== 200) {
-            $this->last_error = "HTTP {$code} response";
-            error_log('[NC Plone] ' . $this->last_error . ' | URL: ' . $this->url);
-            return [];
-        }
-
-        $html = wp_remote_retrieve_body($response);
-        if (empty($html)) {
-            $this->last_error = 'Empty response body';
-            error_log('[NC Plone] ' . $this->last_error . ' | URL: ' . $this->url);
-            return [];
-        }
-
-        $items = $this->parse_html($html);
-
-        if (empty($items)) {
-            $this->last_error = 'No items found in HTML (check CSS selectors)';
-            error_log('[NC Plone] ' . $this->last_error . ' | URL: ' . $this->url . ' | HTML length: ' . strlen($html));
-        }
-
-        return $items;
+        return $all_items;
     }
 
     public function get_last_error() {
@@ -299,6 +314,12 @@ class Plone_Connector implements Connector_Interface {
 
     public function get_config_fields() {
         return [
+            'max_pages' => [
+                'type' => 'number',
+                'label' => __('Páginas a coletar', 'newsmast-curator'),
+                'default' => 1,
+                'help' => __('Número de páginas de listagem (1-10). Cada página tem ~30 itens.', 'newsmast-curator'),
+            ],
             'selector' => [
                 'type' => 'text',
                 'label' => __('Seletor do Container de Itens', 'newsmast-curator'),
