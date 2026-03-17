@@ -101,6 +101,9 @@ class Plugin {
         // Registra cron hooks
         $this->init_cron_hooks();
 
+        // Garante que os crons estejam agendados (podem ter se perdido)
+        $this->ensure_cron_scheduled();
+
         // Registra endpoint externo de cron (independente de WP-Cron)
         $this->init_external_cron();
 
@@ -200,10 +203,10 @@ class Plugin {
      * @return void
      */
     private function init_cron_hooks() {
-        // Hook de coleta automática de fontes (verifica intervalos por fonte)
+        // Hook de coleta automática de todas as fontes ativas
         add_action('nc_collect_sources', function() {
             $collection_service = new \NewsmastCurator\Services\Collection_Service($this->database);
-            $collection_service->auto_collect_due_sources();
+            $collection_service->collect_all_sources();
         });
 
         // Hook de processamento de publicações
@@ -220,6 +223,23 @@ class Plugin {
                 $logger->clear_old_logs($retention_days);
             }
         });
+    }
+
+    /**
+     * Garante que eventos de cron estejam agendados
+     *
+     * Reagenda se estiverem ausentes (ex: após crash ou desativação/reativação).
+     */
+    private function ensure_cron_scheduled() {
+        if (!wp_next_scheduled('nc_collect_sources')) {
+            wp_schedule_event(time(), 'every_5_minutes', 'nc_collect_sources');
+        }
+        if (!wp_next_scheduled('nc_process_publications')) {
+            wp_schedule_event(time(), 'every_5_minutes', 'nc_process_publications');
+        }
+        if (!wp_next_scheduled('nc_cleanup_logs')) {
+            wp_schedule_event(time(), 'daily', 'nc_cleanup_logs');
+        }
     }
 
     /**
@@ -266,12 +286,6 @@ class Plugin {
             }
 
             if ($action === 'all' || $action === 'collect') {
-                $collection_service = new \NewsmastCurator\Services\Collection_Service($this->database);
-                $collection_service->auto_collect_due_sources();
-                $results[] = 'auto-collect checked';
-            }
-
-            if ($action === 'collect-all') {
                 $collection_service = new \NewsmastCurator\Services\Collection_Service($this->database);
                 $collection_service->collect_all_sources();
                 $results[] = 'all sources collected';
