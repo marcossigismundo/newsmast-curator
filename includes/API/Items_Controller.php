@@ -16,6 +16,10 @@ class Items_Controller extends Base_REST_Controller {
             ['methods' => 'POST', 'callback' => [$this, 'curate'], 'permission_callback' => [$this, 'check_permissions']],
         ]);
 
+        register_rest_route($this->namespace, '/' . $this->rest_base . '/(?P<id>[\d]+)/alt-text', [
+            ['methods' => 'GET', 'callback' => [$this, 'get_alt_text'], 'permission_callback' => [$this, 'check_permissions']],
+        ]);
+
         register_rest_route($this->namespace, '/' . $this->rest_base . '/stats', [
             ['methods' => 'GET', 'callback' => [$this, 'get_stats'], 'permission_callback' => [$this, 'check_permissions']],
         ]);
@@ -56,6 +60,18 @@ class Items_Controller extends Base_REST_Controller {
         $user_id = get_current_user_id();
         $result = $repo->mark_as_curated($request['id'], $user_id);
         return $result ? $this->prepare_response(['success' => true]) : $this->prepare_error('Failed');
+    }
+
+    public function get_alt_text($request) {
+        $repo = new Item_Repository($this->database);
+        $item = $repo->find($request['id']);
+        if (!$item) {
+            return $this->prepare_error(__('Item não encontrado', 'newsmast-curator'), 'not_found', 404);
+        }
+        return $this->prepare_response([
+            'alt_text' => $item->build_alt_text(),
+            'char_count' => mb_strlen($item->build_alt_text()),
+        ]);
     }
 
     public function get_stats($request) {

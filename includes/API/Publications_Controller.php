@@ -42,6 +42,7 @@ class Publications_Controller extends Base_REST_Controller {
         $item_id = isset($request['item_id']) ? (int) $request['item_id'] : 0;
         $scheduled_for = isset($request['scheduled_for']) ? sanitize_text_field($request['scheduled_for']) : '';
         $content = isset($request['content']) ? sanitize_textarea_field($request['content']) : '';
+        $alt_text = isset($request['alt_text']) ? sanitize_textarea_field($request['alt_text']) : '';
         $mastodon_account_ids = isset($request['mastodon_account_ids']) ? array_map('intval', (array) $request['mastodon_account_ids']) : [];
         $mastodon_account_id = isset($request['mastodon_account_id']) ? (int) $request['mastodon_account_id'] : 0;
 
@@ -84,6 +85,7 @@ class Publications_Controller extends Base_REST_Controller {
                 $pub->set_mastodon_account_id($account_id);
                 $pub->set_scheduled_for($normalized_datetime);
                 $pub->set_content($content);
+                $pub->set_alt_text($alt_text);
                 $pub->set_published_by(get_current_user_id());
 
                 $id = $repo->insert($pub);
@@ -104,6 +106,7 @@ class Publications_Controller extends Base_REST_Controller {
         }
         $pub->set_scheduled_for($normalized_datetime);
         $pub->set_content($content);
+        $pub->set_alt_text($alt_text);
         $pub->set_published_by(get_current_user_id());
 
         $id = $repo->insert($pub);

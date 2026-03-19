@@ -15,6 +15,7 @@ class Publication {
     private $status = 'scheduled';
     private $scheduled_for = '';
     private $content = '';
+    private $alt_text = '';
     private $media_ids = [];
     private $mastodon_id = null;
     private $mastodon_url = null;
@@ -38,6 +39,7 @@ class Publication {
     public function get_status() { return $this->status; }
     public function get_scheduled_for() { return $this->scheduled_for; }
     public function get_content() { return $this->content; }
+    public function get_alt_text() { return $this->alt_text; }
     public function get_media_ids() { return $this->media_ids; }
     public function get_mastodon_id() { return $this->mastodon_id; }
     public function get_mastodon_url() { return $this->mastodon_url; }
@@ -55,6 +57,7 @@ class Publication {
     public function set_status($status) { $this->status = sanitize_text_field($status); }
     public function set_scheduled_for($datetime) { $this->scheduled_for = $datetime; }
     public function set_content($content) { $this->content = sanitize_textarea_field($content); }
+    public function set_alt_text($text) { $this->alt_text = sanitize_textarea_field($text); }
 
     public function set_media_ids($ids) {
         if (is_string($ids)) {
@@ -204,6 +207,7 @@ class Publication {
         $pub->set_status($row->status ?? 'scheduled');
         $pub->set_scheduled_for($row->scheduled_for ?? '');
         $pub->set_content($row->content ?? '');
+        $pub->set_alt_text($row->alt_text ?? '');
         $pub->set_media_ids($row->media_ids ?? '[]');
         $pub->set_mastodon_id($row->mastodon_id ?? null);
         $pub->set_mastodon_url($row->mastodon_url ?? null);
@@ -229,6 +233,7 @@ class Publication {
             'status' => $this->status,
             'scheduled_for' => $this->scheduled_for,
             'content' => $this->content,
+            'alt_text' => $this->alt_text,
             'media_ids' => wp_json_encode($this->media_ids),
             'mastodon_id' => $this->mastodon_id,
             'mastodon_url' => $this->mastodon_url,
@@ -260,6 +265,7 @@ class Publication {
             'status' => $this->status,
             'scheduled_for' => $this->scheduled_for,
             'content' => $this->content,
+            'alt_text' => $this->alt_text,
             'character_count' => mb_strlen($this->content),
             'has_media' => !empty($this->media_ids),
             'media_count' => count($this->media_ids),

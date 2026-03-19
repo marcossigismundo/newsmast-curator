@@ -991,6 +991,59 @@ select.nc-form-control {
     font-size: 13px;
 }
 
+/* Hashtag input */
+.nc-hashtag-input-wrap {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+
+.nc-hashtag-input-wrap .nc-form-control {
+    flex: 1;
+    min-width: 180px;
+}
+
+.nc-hashtag-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.nc-hashtag-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    background: #e3f0f7;
+    color: var(--nc-accent-dark);
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.nc-hashtag-tag button {
+    border: none;
+    background: none;
+    color: inherit;
+    font-size: 14px;
+    cursor: pointer;
+    padding: 0 2px;
+    line-height: 1;
+    opacity: 0.7;
+}
+
+.nc-hashtag-tag button:hover {
+    opacity: 1;
+}
+
+/* Alt text field */
+#nc-schedule-alt-text {
+    font-size: 12px;
+    line-height: 1.5;
+    resize: vertical;
+}
+
 /* ===========================
    Notices
    =========================== */

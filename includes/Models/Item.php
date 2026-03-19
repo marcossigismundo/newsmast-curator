@@ -258,6 +258,65 @@ class Item {
      *
      * @return array
      */
+    /**
+     * Gera texto alternativo estruturado para a imagem do item
+     *
+     * @return string Alt text (máx 1500 chars, limite do Mastodon)
+     */
+    public function build_alt_text() {
+        $parts = [];
+
+        $title = wp_strip_all_tags($this->title);
+        if (!empty($title)) {
+            $parts[] = $title;
+        }
+
+        $author = $this->author;
+        if (!empty($author)) {
+            $parts[] = sprintf(__('Autoria: %s', 'newsmast-curator'), $author);
+        }
+
+        $excerpt = wp_strip_all_tags($this->excerpt);
+        if (empty($excerpt)) {
+            $excerpt = wp_strip_all_tags($this->content);
+        }
+        if (!empty($excerpt)) {
+            $parts[] = wp_trim_words($excerpt, 60, '…');
+        }
+
+        $metadata = $this->metadata;
+        if (is_array($metadata) && !empty($metadata)) {
+            $relevant_fields = [
+                'material-tecnica-2' => __('Material/Técnica', 'newsmast-curator'),
+                'dimensoes'          => __('Dimensões', 'newsmast-curator'),
+                'data-de-producao'   => __('Data de produção', 'newsmast-curator'),
+                'instalacao'         => __('Museu', 'newsmast-curator'),
+                'localizacao'        => __('Coleção', 'newsmast-curator'),
+            ];
+            foreach ($relevant_fields as $slug => $label) {
+                if (isset($metadata[$slug]) && !empty($metadata[$slug]['value_as_string'])) {
+                    $value = wp_strip_all_tags($metadata[$slug]['value_as_string']);
+                    if (!empty($value)) {
+                        $parts[] = "{$label}: {$value}";
+                    }
+                }
+            }
+        }
+
+        $url = $this->url;
+        if (!empty($url)) {
+            $parts[] = sprintf(__('Fonte: %s', 'newsmast-curator'), $url);
+        }
+
+        $alt_text = implode("\n", $parts);
+
+        if (mb_strlen($alt_text) > 1500) {
+            $alt_text = mb_substr($alt_text, 0, 1497) . '…';
+        }
+
+        return $alt_text;
+    }
+
     public function to_api_response() {
         return [
             'id' => $this->id,

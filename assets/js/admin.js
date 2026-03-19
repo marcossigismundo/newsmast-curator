@@ -499,12 +499,23 @@
                             '</div>' +
                             '<div class="nc-form-group">' +
                                 '<label class="nc-form-label">' + NC.__('post_content', 'Conteúdo do Post') + ' *</label>' +
-                                '<textarea id="nc-schedule-content" class="nc-form-control" rows="6" required' +
+                                '<textarea id="nc-schedule-content" class="nc-form-control" rows="5" required' +
                                     ' placeholder="' + NC.__('content_auto_fill', 'O conteúdo será preenchido automaticamente ao selecionar um item...') + '"></textarea>' +
                                 '<div class="nc-char-counter">' +
                                     '<span id="nc-schedule-char-count">0</span> / 500 ' + NC.__('characters', 'caracteres') +
                                 '</div>' +
-                                '<span class="nc-form-help">' + NC.__('edit_mastodon_text', 'Edite o texto que será publicado no Mastodon') + '</span>' +
+                            '</div>' +
+                            '<div class="nc-form-group">' +
+                                '<label class="nc-form-label">' +
+                                    '<span class="dashicons dashicons-tag" style="font-size:16px;vertical-align:text-bottom;"></span> ' +
+                                    NC.__('hashtags', 'Hashtags adicionais') +
+                                '</label>' +
+                                '<div class="nc-hashtag-input-wrap">' +
+                                    '<div id="nc-schedule-hashtags" class="nc-hashtag-tags"></div>' +
+                                    '<input type="text" id="nc-schedule-hashtag-input" class="nc-form-control" ' +
+                                        'placeholder="' + NC.__('hashtag_placeholder', 'Digite uma hashtag e pressione Enter...') + '">' +
+                                '</div>' +
+                                '<span class="nc-form-help">' + NC.__('hashtag_help', 'Pressione Enter ou vírgula para adicionar. Hashtags serão incluídas no final do post.') + '</span>' +
                             '</div>' +
                             '<div class="nc-schedule-row">' +
                                 '<div class="nc-form-group" style="flex:1;">' +
@@ -520,6 +531,18 @@
                                 '</div>' +
                             '</div>' +
                             '<div id="nc-schedule-accounts-container"></div>' +
+                            '<div class="nc-form-group" id="nc-schedule-alt-group" style="display:none;">' +
+                                '<label class="nc-form-label">' +
+                                    '<span class="dashicons dashicons-universal-access-alt" style="font-size:16px;vertical-align:text-bottom;"></span> ' +
+                                    NC.__('image_alt_text', 'Texto alternativo da imagem (acessibilidade)') +
+                                '</label>' +
+                                '<textarea id="nc-schedule-alt-text" class="nc-form-control" rows="4" ' +
+                                    'placeholder="' + NC.__('alt_text_placeholder', 'Descrição da imagem para leitores de tela...') + '"></textarea>' +
+                                '<div class="nc-char-counter">' +
+                                    '<span id="nc-schedule-alt-count">0</span> / 1500 ' + NC.__('characters', 'caracteres') +
+                                '</div>' +
+                                '<span class="nc-form-help">' + NC.__('alt_text_help', 'Texto descritivo para acessibilidade. Gerado automaticamente, edite se necessário.') + '</span>' +
+                            '</div>' +
                             '<div class="nc-form-group">' +
                                 '<label class="nc-form-label">Preview</label>' +
                                 '<div class="nc-schedule-preview">' +
@@ -548,6 +571,36 @@
             $('#nc-schedule-content').on('input', function() {
                 NC.updateCharCounter();
                 NC.updateSchedulePreview();
+            });
+
+            $('#nc-schedule-alt-text').on('input', function() {
+                var len = ($(this).val() || '').length;
+                $('#nc-schedule-alt-count').text(len);
+                if (len > 1500) {
+                    $(this).val($(this).val().substring(0, 1500));
+                    $('#nc-schedule-alt-count').text(1500);
+                }
+            });
+
+            // Hashtag input handler
+            $('#nc-schedule-hashtag-input').on('keydown', function(e) {
+                if (e.key === 'Enter' || e.key === ',') {
+                    e.preventDefault();
+                    NC.addScheduleHashtag($(this).val());
+                    $(this).val('');
+                }
+            });
+
+            $('#nc-schedule-include-image').on('change', function() {
+                if ($(this).is(':checked')) {
+                    var itemId = $('#nc-schedule-item-select').val();
+                    var hasImage = $('#nc-schedule-item-select option:selected').data('has-image');
+                    if (itemId && (hasImage === '1' || hasImage === 1)) {
+                        $('#nc-schedule-alt-group').show();
+                    }
+                } else {
+                    $('#nc-schedule-alt-group').hide();
+                }
             });
 
             $('#nc-schedule-item-select').on('change', function() {
@@ -587,10 +640,47 @@
             });
         },
 
+        _scheduleHashtags: [],
+
+        addScheduleHashtag: function(tag) {
+            tag = tag.trim().replace(/^#+/, '').replace(/[^a-zA-Z0-9À-ÿ_]/g, '');
+            if (!tag) return;
+            tag = '#' + tag;
+            if (this._scheduleHashtags.indexOf(tag) !== -1) return;
+            this._scheduleHashtags.push(tag);
+            this.renderScheduleHashtags();
+            this.updateCharCounter();
+            this.updateSchedulePreview();
+        },
+
+        removeScheduleHashtag: function(index) {
+            this._scheduleHashtags.splice(index, 1);
+            this.renderScheduleHashtags();
+            this.updateCharCounter();
+            this.updateSchedulePreview();
+        },
+
+        renderScheduleHashtags: function() {
+            var html = '';
+            this._scheduleHashtags.forEach(function(tag, i) {
+                html += '<span class="nc-hashtag-tag">' + NC.escapeHtml(tag) +
+                    ' <button type="button" onclick="NC.removeScheduleHashtag(' + i + ')">&times;</button></span>';
+            });
+            $('#nc-schedule-hashtags').html(html);
+        },
+
+        getHashtagsText: function() {
+            return this._scheduleHashtags.length > 0 ? '\n' + this._scheduleHashtags.join(' ') : '';
+        },
+
         loadItemContent: function(itemId) {
             var $option = $('#nc-schedule-item-select option[value="' + itemId + '"]');
             var formatted = decodeURIComponent($option.data('formatted') || '');
             var hasImage = $option.data('has-image') === '1' || $option.data('has-image') === 1;
+
+            // Reset hashtags
+            this._scheduleHashtags = [];
+            this.renderScheduleHashtags();
 
             if (formatted) {
                 $('#nc-schedule-content').val(formatted);
@@ -599,10 +689,26 @@
             }
 
             $('#nc-schedule-include-image').prop('checked', hasImage);
+
+            // Carrega alt text se tem imagem
+            if (hasImage) {
+                $('#nc-schedule-alt-group').show();
+                $('#nc-schedule-alt-text').val('');
+                $('#nc-schedule-alt-count').text('0');
+                wp.apiFetch({path: ncData.apiUrl + '/items/' + itemId + '/alt-text'}).then(function(data) {
+                    $('#nc-schedule-alt-text').val(data.alt_text || '');
+                    $('#nc-schedule-alt-count').text((data.alt_text || '').length);
+                });
+            } else {
+                $('#nc-schedule-alt-group').hide();
+                $('#nc-schedule-alt-text').val('');
+            }
         },
 
         updateCharCounter: function() {
-            var len = ($('#nc-schedule-content').val() || '').length;
+            var content = $('#nc-schedule-content').val() || '';
+            var hashtags = this.getHashtagsText();
+            var len = (content + hashtags).length;
             var $counter = $('#nc-schedule-char-count');
             $counter.text(len);
             if (len > 500) {
@@ -614,7 +720,8 @@
 
         updateSchedulePreview: function() {
             var content = $('#nc-schedule-content').val() || '';
-            $('#nc-schedule-preview-text').text(content);
+            var hashtags = this.getHashtagsText();
+            $('#nc-schedule-preview-text').text(content + hashtags);
         },
 
         submitSchedule: function() {
@@ -624,7 +731,7 @@
                 return;
             }
 
-            var content = $('#nc-schedule-content').val();
+            var content = $('#nc-schedule-content').val() + this.getHashtagsText();
             if (content.length > 500) {
                 this.showNotice('warning', NC.__('content_too_long', 'O conteúdo excede 500 caracteres. Reduza o texto antes de agendar.'));
                 return;
@@ -649,6 +756,14 @@
                 scheduled_for: $('#nc-schedule-datetime').val(),
                 content: content
             };
+
+            // Include alt text if image is being included
+            if ($('#nc-schedule-include-image').is(':checked')) {
+                var altText = ($('#nc-schedule-alt-text').val() || '').trim();
+                if (altText) {
+                    data.alt_text = altText;
+                }
+            }
 
             if (accountIds.length > 0) {
                 data.mastodon_account_ids = accountIds;

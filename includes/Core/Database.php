@@ -28,7 +28,7 @@ class Database {
      *
      * @var string
      */
-    private $db_version = '1.2.0';
+    private $db_version = '1.3.0';
 
     /**
      * Construtor
@@ -89,6 +89,7 @@ class Database {
             $this->migrate_sources_auto_collect();
             $this->migrate_items_collection_type();
             $this->migrate_publications_mastodon_account();
+            $this->migrate_publications_alt_text();
 
             update_option('nc_db_version', $this->db_version);
 
@@ -359,6 +360,14 @@ class Database {
         if (!$row) {
             $this->wpdb->query("ALTER TABLE {$table} ADD COLUMN mastodon_account_id BIGINT(20) UNSIGNED NULL AFTER item_id");
             $this->wpdb->query("ALTER TABLE {$table} ADD KEY idx_mastodon_account_id (mastodon_account_id)");
+        }
+    }
+
+    private function migrate_publications_alt_text() {
+        $table = $this->tables['publications'];
+        $row = $this->wpdb->get_row("SHOW COLUMNS FROM {$table} LIKE 'alt_text'");
+        if (!$row) {
+            $this->wpdb->query("ALTER TABLE {$table} ADD COLUMN alt_text TEXT NULL AFTER content");
         }
     }
 
