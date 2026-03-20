@@ -1499,8 +1499,25 @@ select.nc-form-control {
     transform: scale(1.1);
 }
 
+/* Collection detail toolbar */
+.nc-detail-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    font-size: 12px;
+    color: var(--nc-text-light);
+}
+
+.nc-detail-hint .dashicons {
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+    vertical-align: text-bottom;
+}
+
 .nc-collection-items-list {
-    max-height: 300px;
+    max-height: 420px;
     overflow-y: auto;
     border: 1px solid var(--nc-border);
     border-radius: 8px;
@@ -1509,14 +1526,57 @@ select.nc-form-control {
 .nc-collection-item-row {
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 10px 14px;
+    gap: 10px;
+    padding: 10px 12px;
     border-bottom: 1px solid var(--nc-border);
     font-size: 13px;
+    background: var(--nc-white);
+    transition: background 0.15s, box-shadow 0.15s;
 }
 
 .nc-collection-item-row:last-child {
     border-bottom: none;
+}
+
+.nc-collection-item-row:hover {
+    background: var(--nc-bg);
+}
+
+/* Drag handle */
+.nc-drag-handle {
+    cursor: grab;
+    color: var(--nc-text-light);
+    padding: 2px;
+    flex-shrink: 0;
+    opacity: 0.5;
+    transition: opacity 0.2s;
+}
+
+.nc-drag-handle:active {
+    cursor: grabbing;
+}
+
+.nc-collection-item-row:hover .nc-drag-handle {
+    opacity: 1;
+}
+
+.nc-drag-handle .dashicons {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+}
+
+/* Dragging states */
+.nc-draggable.nc-dragging {
+    opacity: 0.3;
+}
+
+.nc-drag-placeholder {
+    height: 52px;
+    border: 2px dashed var(--nc-accent);
+    border-radius: 6px;
+    background: rgba(69, 123, 157, 0.06);
+    margin: 2px 4px;
 }
 
 .nc-collection-item-order {
@@ -1533,11 +1593,54 @@ select.nc-form-control {
     flex-shrink: 0;
 }
 
-.nc-collection-item-title {
+/* Detail thumbnail */
+.nc-detail-thumb {
+    width: 44px;
+    height: 44px;
+    object-fit: cover;
+    border-radius: 6px;
+    flex-shrink: 0;
+}
+
+.nc-detail-thumb-placeholder {
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--nc-bg);
+    border-radius: 6px;
+    color: var(--nc-text-light);
+    font-size: 20px;
+    flex-shrink: 0;
+}
+
+/* Detail item info */
+.nc-detail-item-info {
     flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.nc-collection-item-title {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    font-weight: 500;
+}
+
+.nc-detail-item-meta {
+    font-size: 11px;
+    color: var(--nc-text-light);
+}
+
+.nc-detail-item-meta .dashicons {
+    font-size: 12px;
+    width: 12px;
+    height: 12px;
+    vertical-align: text-bottom;
 }
 
 .nc-collection-item-actions {

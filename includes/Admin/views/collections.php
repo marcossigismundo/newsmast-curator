@@ -272,18 +272,27 @@ NC.openCollectionDetailModal = function(id) {
     if (!jQuery('#nc-collection-detail-modal').length) {
         var html =
         '<div id="nc-collection-detail-modal" class="nc-modal-overlay">' +
-            '<div class="nc-modal" style="max-width:600px;">' +
+            '<div class="nc-modal" style="max-width:700px;">' +
                 '<div class="nc-modal-header">' +
                     '<h3 class="nc-modal-title"><span class="dashicons dashicons-list-view" style="color:var(--nc-accent);"></span> ' +
                         '<span id="nc-detail-title">' + NC.__('collection_items', 'Itens da Coleção') + '</span></h3>' +
                     '<button class="nc-modal-close" onclick="NC.closeModal(\'nc-collection-detail-modal\')">&times;</button>' +
                 '</div>' +
-                '<div class="nc-modal-body" id="nc-collection-detail-body">' +
-                    '<div class="nc-loading"><div class="nc-spinner"></div></div>' +
+                '<div class="nc-modal-body">' +
+                    '<div class="nc-detail-toolbar">' +
+                        '<span class="nc-detail-hint">' +
+                            '<span class="dashicons dashicons-move"></span> ' +
+                            NC.__('drag_to_reorder', 'Arraste para reordenar a publicação') +
+                        '</span>' +
+                        '<span id="nc-detail-item-count"></span>' +
+                    '</div>' +
+                    '<div id="nc-collection-detail-body">' +
+                        '<div class="nc-loading"><div class="nc-spinner"></div></div>' +
+                    '</div>' +
                 '</div>' +
                 '<div class="nc-modal-footer">' +
                     '<button class="nc-button nc-button-secondary" onclick="NC.closeModal(\'nc-collection-detail-modal\')">' +
-                        NC.__('cancel', 'Cancelar') + '</button>' +
+                        NC.__('close', 'Fechar') + '</button>' +
                 '</div>' +
             '</div>' +
         '</div>';
@@ -291,11 +300,13 @@ NC.openCollectionDetailModal = function(id) {
     }
 
     NC._currentDetailCollectionId = id;
+    NC._detailItems = [];
     jQuery('#nc-collection-detail-body').html('<div class="nc-loading"><div class="nc-spinner"></div></div>');
+    jQuery('#nc-detail-item-count').text('');
     NC.openModal('nc-collection-detail-modal');
 
     wp.apiFetch({path: ncData.apiUrl + '/collections/' + id}).then(function(col) {
-        jQuery('#nc-detail-title').text(NC.__('collection_items', 'Itens da Coleção') + ': ' + col.name);
+        jQuery('#nc-detail-title').text(col.name);
     });
 
     wp.apiFetch({path: ncData.apiUrl + '/collections/' + id + '/items'}).then(function(items) {
@@ -306,30 +317,135 @@ NC.openCollectionDetailModal = function(id) {
                     '<p>' + NC.__('collection_no_items', 'Adicione itens à coleção antes de agendar') + '</p>' +
                 '</div>'
             );
+            jQuery('.nc-detail-toolbar').hide();
             return;
         }
 
-        var html = '<div class="nc-collection-items-list">';
-        items.forEach(function(item, idx) {
-            html += '<div class="nc-collection-item-row">';
-            html += '<span class="nc-collection-item-order">' + (idx + 1) + '</span>';
-            html += '<span class="nc-collection-item-title">' + NC.escapeHtml(item.title || NC.__('untitled', 'Sem título')) + '</span>';
-            html += '<div class="nc-collection-item-actions">';
-            html += '<button class="nc-button nc-button-primary nc-button-sm" onclick="NC.scheduleCollectionItem(' + item.id + ')" title="' + NC.__('schedule', 'Agendar') + '">' +
-                '<span class="dashicons dashicons-calendar-alt"></span></button>';
-            html += '<button class="nc-collection-item-remove" onclick="NC.removeItemFromCollection(' + id + ', ' + item.id + ')" title="' + NC.__('remove', 'Remover') + '">' +
-                '<span class="dashicons dashicons-no-alt"></span></button>';
-            html += '</div>';
-            html += '</div>';
-        });
-        html += '</div>';
-        jQuery('#nc-collection-detail-body').html(html);
+        jQuery('.nc-detail-toolbar').show();
+        NC._detailItems = items;
+        jQuery('#nc-detail-item-count').text(items.length + ' ' + NC.__('items_label', 'itens'));
+        NC.renderCollectionDetailItems(id, items);
     }).catch(function() {
         jQuery('#nc-collection-detail-body').html(
             '<div class="nc-notice nc-notice-error">' +
                 '<span class="dashicons dashicons-dismiss"></span> ' + NC.__('load_items_error', 'Erro ao carregar itens') +
             '</div>'
         );
+    });
+};
+
+NC.renderCollectionDetailItems = function(collectionId, items) {
+    var html = '<div class="nc-collection-items-list" id="nc-sortable-list">';
+    items.forEach(function(item, idx) {
+        var thumb = item.image_url
+            ? '<img src="' + NC.escapeHtml(item.image_url) + '" class="nc-detail-thumb" alt="">'
+            : '<span class="nc-detail-thumb-placeholder dashicons dashicons-format-image"></span>';
+        var date = item.published_date ? new Date(item.published_date).toLocaleDateString('pt-BR') : '';
+        var author = item.author ? NC.escapeHtml(item.author) : '';
+
+        html += '<div class="nc-collection-item-row nc-draggable" draggable="true" data-item-id="' + item.id + '">';
+        html += '<span class="nc-drag-handle" title="' + NC.__('drag_to_move', 'Arraste para mover') + '">' +
+            '<span class="dashicons dashicons-menu"></span></span>';
+        html += '<span class="nc-collection-item-order">' + (idx + 1) + '</span>';
+        html += thumb;
+        html += '<div class="nc-detail-item-info">';
+        html += '<span class="nc-collection-item-title">' + NC.escapeHtml(item.title || NC.__('untitled', 'Sem título')) + '</span>';
+        if (date || author) {
+            html += '<span class="nc-detail-item-meta">';
+            if (author) html += '<span class="dashicons dashicons-admin-users"></span> ' + author;
+            if (date && author) html += ' · ';
+            if (date) html += '<span class="dashicons dashicons-calendar"></span> ' + date;
+            html += '</span>';
+        }
+        html += '</div>';
+        html += '<div class="nc-collection-item-actions">';
+        html += '<button class="nc-button nc-button-primary nc-button-sm" onclick="NC.scheduleCollectionItem(' + item.id + ')" title="' + NC.__('schedule', 'Agendar') + '">' +
+            '<span class="dashicons dashicons-calendar-alt"></span></button>';
+        html += '<button class="nc-collection-item-remove" onclick="NC.removeItemFromCollection(' + collectionId + ', ' + item.id + ')" title="' + NC.__('remove', 'Remover') + '">' +
+            '<span class="dashicons dashicons-no-alt"></span></button>';
+        html += '</div>';
+        html += '</div>';
+    });
+    html += '</div>';
+    jQuery('#nc-collection-detail-body').html(html);
+    NC.initDragAndDrop(collectionId);
+};
+
+NC.initDragAndDrop = function(collectionId) {
+    var list = document.getElementById('nc-sortable-list');
+    if (!list) return;
+
+    var dragItem = null;
+    var placeholder = document.createElement('div');
+    placeholder.className = 'nc-drag-placeholder';
+
+    list.addEventListener('dragstart', function(e) {
+        var row = e.target.closest('.nc-draggable');
+        if (!row) return;
+        dragItem = row;
+        row.classList.add('nc-dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', '');
+    });
+
+    list.addEventListener('dragend', function(e) {
+        if (dragItem) {
+            dragItem.classList.remove('nc-dragging');
+            dragItem = null;
+        }
+        if (placeholder.parentNode) {
+            placeholder.parentNode.removeChild(placeholder);
+        }
+    });
+
+    list.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        var target = e.target.closest('.nc-draggable');
+        if (!target || target === dragItem) {
+            // If hovering over placeholder area at end of list
+            if (e.target === list || e.target === placeholder) {
+                if (placeholder.parentNode !== list) list.appendChild(placeholder);
+            }
+            return;
+        }
+
+        var rect = target.getBoundingClientRect();
+        var midY = rect.top + rect.height / 2;
+        if (e.clientY < midY) {
+            list.insertBefore(placeholder, target);
+        } else {
+            list.insertBefore(placeholder, target.nextSibling);
+        }
+    });
+
+    list.addEventListener('drop', function(e) {
+        e.preventDefault();
+        if (!dragItem) return;
+
+        if (placeholder.parentNode) {
+            list.insertBefore(dragItem, placeholder);
+            placeholder.parentNode.removeChild(placeholder);
+        }
+
+        // Update order numbers
+        var rows = list.querySelectorAll('.nc-draggable');
+        var itemIds = [];
+        rows.forEach(function(row, idx) {
+            row.querySelector('.nc-collection-item-order').textContent = idx + 1;
+            itemIds.push(parseInt(row.getAttribute('data-item-id')));
+        });
+
+        // Save new order
+        wp.apiFetch({
+            path: ncData.apiUrl + '/collections/' + collectionId + '/reorder',
+            method: 'POST',
+            data: { item_ids: itemIds }
+        }).then(function() {
+            NC.showNotice('success', NC.__('order_saved', 'Ordem salva!'));
+        }).catch(function() {
+            NC.showNotice('error', NC.__('order_save_error', 'Erro ao salvar ordem'));
+        });
     });
 };
 
