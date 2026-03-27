@@ -51,7 +51,7 @@
         <button class="nc-search-clear" id="nc-search-clear" style="display:none;" onclick="NC.clearSearch()" title="<?php esc_attr_e('Limpar busca', 'newsmast-curator'); ?>">&times;</button>
     </div>
     <div class="nc-filter-toggles">
-        <select id="nc-filter-source" class="nc-form-control nc-filter-select" onchange="NC.applyFilters()">
+        <select id="nc-filter-source" class="nc-form-control nc-filter-select">
             <option value=""><?php _e('Todas as fontes', 'newsmast-curator'); ?></option>
         </select>
         <button class="nc-button nc-button-secondary nc-btn-sm" id="nc-toggle-advanced" onclick="NC.toggleAdvancedFilters()">
@@ -103,6 +103,15 @@
                 <option value="collected_at"><?php _e('Data de coleta', 'newsmast-curator'); ?></option>
             </select>
         </div>
+    </div>
+    <!-- Facetas dinâmicas Tainacan -->
+    <div id="nc-tainacan-facets" class="nc-tainacan-facets" style="display:none;">
+        <div class="nc-facets-header">
+            <span class="dashicons dashicons-database"></span>
+            <strong><?php _e('Metadados da Coleção', 'newsmast-curator'); ?></strong>
+            <span id="nc-facets-source-name" class="nc-facets-source-label"></span>
+        </div>
+        <div class="nc-filters-grid" id="nc-facets-container"></div>
     </div>
     <div class="nc-filters-actions">
         <button class="nc-button nc-button-secondary nc-btn-sm" onclick="NC.clearAllFilters()">
@@ -241,6 +250,7 @@
                 <span class="dashicons dashicons-dismiss"></span>
             </button>
         </div>
+        <div id="nc-triage-tainacan-facets" class="nc-triage-facets-row" style="display:none;"></div>
         <div class="nc-triage-filter-info" id="nc-triage-filter-info"></div>
     </div>
     <div class="nc-triage-body">
@@ -294,16 +304,24 @@ jQuery(document).ready(function($) {
         $('#nc-curated-count').text(stats.curated || 0);
     });
 
-    // Load sources for filter
+    // Load sources for filter (store for connector_type lookup)
+    NC._sourcesMap = {};
     wp.apiFetch({path: ncData.apiUrl + '/sources'}).then(function(data) {
         var $sel = $('#nc-filter-source');
         (data.sources || data || []).forEach(function(s) {
+            NC._sourcesMap[s.id] = s;
             var label = NC.escapeHtml(s.name);
             if (s.config && s.config.search_terms) {
                 label += ' (' + NC.escapeHtml(s.config.search_terms) + ')';
             }
-            $sel.append('<option value="' + s.id + '">' + label + '</option>');
+            $sel.append('<option value="' + s.id + '" data-type="' + (s.connector_type || '') + '">' + label + '</option>');
         });
+    });
+
+    // Load Tainacan facets when source changes
+    $('#nc-filter-source').on('change', function() {
+        NC.loadTainacanFacets($(this).val(), 'main');
+        NC.applyFilters();
     });
 
     // Load authors for autocomplete
@@ -386,6 +404,9 @@ NC.switchTab = function(curated) {
 };
 
 // ========== Filters ==========
+NC._facetsCache = {};
+NC._currentFacets = [];
+
 NC.getFilterParams = function() {
     var params = '';
     var search = jQuery('#nc-search-input').val();
@@ -404,6 +425,13 @@ NC.getFilterParams = function() {
     if (collType) params += '&collection_type=' + collType;
     var orderby = jQuery('#nc-filter-orderby').val();
     if (orderby && orderby !== 'id') params += '&orderby=' + orderby + '&order=ASC';
+    // Tainacan metadata facets
+    jQuery('.nc-facet-select').each(function() {
+        var val = jQuery(this).val();
+        if (val) {
+            params += '&meta_' + jQuery(this).data('slug') + '=' + encodeURIComponent(val);
+        }
+    });
     return params;
 };
 
@@ -426,13 +454,14 @@ NC.clearSearch = function() {
 NC.clearAllFilters = function() {
     jQuery('#nc-search-input').val('');
     jQuery('#nc-search-clear').hide();
-    jQuery('#nc-filter-source').val('');
+    jQuery('#nc-filter-source').val('').trigger('change');
     jQuery('#nc-filter-date-from').val('');
     jQuery('#nc-filter-date-to').val('');
     jQuery('#nc-filter-author').val('');
     jQuery('#nc-filter-has-image').val('');
     jQuery('#nc-filter-collection-type').val('');
     jQuery('#nc-filter-orderby').val('id');
+    jQuery('.nc-facet-select').val('');
     NC.updateActiveFiltersCount();
     NC.resetAndLoad();
 };
@@ -445,11 +474,125 @@ NC.updateActiveFiltersCount = function() {
     if (jQuery('#nc-filter-has-image').val() !== '') count++;
     if (jQuery('#nc-filter-collection-type').val()) count++;
     if (jQuery('#nc-filter-orderby').val() !== 'id') count++;
+    jQuery('.nc-facet-select').each(function() { if (jQuery(this).val()) count++; });
     var $badge = jQuery('#nc-active-filters-badge');
     if (count > 0) {
         $badge.text(count).show();
     } else {
         $badge.hide();
+    }
+};
+
+// ========== Tainacan Facets ==========
+NC.loadTainacanFacets = function(sourceId, target) {
+    var $container, $panel;
+    if (target === 'triage') {
+        $container = jQuery('#nc-triage-tainacan-facets');
+    } else {
+        $container = jQuery('#nc-facets-container');
+        $panel = jQuery('#nc-tainacan-facets');
+    }
+
+    // Se não tem fonte selecionada ou não é Tainacan, esconde
+    if (!sourceId || !NC._sourcesMap[sourceId] || NC._sourcesMap[sourceId].connector_type !== 'tainacan') {
+        if (target === 'triage') {
+            $container.hide().empty();
+        } else {
+            $panel.hide();
+            $container.empty();
+        }
+        NC._currentFacets = [];
+        return;
+    }
+
+    var source = NC._sourcesMap[sourceId];
+
+    // Cache hit?
+    if (NC._facetsCache[sourceId]) {
+        NC.renderFacets(NC._facetsCache[sourceId], source, target);
+        return;
+    }
+
+    // Loading state
+    if (target === 'triage') {
+        $container.html('<span style="color:var(--nc-text-light);font-size:12px;padding:4px 0;"><span class="nc-spinner-small" style="display:inline-block;vertical-align:middle;margin-right:6px;"></span> Carregando metadados da coleção...</span>').show();
+    } else {
+        $panel.show();
+        $container.html('<div style="grid-column:1/-1;color:var(--nc-text-light);font-size:13px;"><span class="nc-spinner-small" style="display:inline-block;vertical-align:middle;margin-right:6px;"></span> Carregando metadados da coleção...</div>');
+    }
+
+    wp.apiFetch({path: ncData.apiUrl + '/sources/' + sourceId + '/tainacan-facets'}).then(function(data) {
+        var facets = (data.facets || []).filter(function(f) {
+            return f.values && f.values.length > 0;
+        });
+        NC._facetsCache[sourceId] = facets;
+        NC.renderFacets(facets, source, target);
+    }).catch(function(e) {
+        if (target === 'triage') {
+            $container.hide().empty();
+        } else {
+            $panel.hide();
+            $container.empty();
+        }
+    });
+};
+
+NC.renderFacets = function(facets, source, target) {
+    NC._currentFacets = facets;
+    var $container, $panel;
+    if (target === 'triage') {
+        $container = jQuery('#nc-triage-tainacan-facets');
+    } else {
+        $container = jQuery('#nc-facets-container');
+        $panel = jQuery('#nc-tainacan-facets');
+    }
+
+    if (!facets || facets.length === 0) {
+        if (target === 'triage') {
+            $container.hide().empty();
+        } else {
+            $panel.hide();
+            $container.empty();
+        }
+        return;
+    }
+
+    var html = '';
+    if (target !== 'triage') {
+        jQuery('#nc-facets-source-name').text(source.name || '');
+    }
+
+    facets.forEach(function(facet) {
+        var cls = target === 'triage' ? 'nc-triage-filter-group' : 'nc-filter-group';
+        var selectCls = target === 'triage' ? 'nc-form-control nc-triage-filter-select nc-facet-select nc-triage-facet-select' : 'nc-form-control nc-filter-input nc-facet-select';
+        var changeHandler = target === 'triage' ? '' : ' onchange="NC.applyFilters()"';
+
+        html += '<div class="' + cls + '">';
+        if (target !== 'triage') {
+            html += '<label class="nc-filter-label">' + NC.escapeHtml(facet.name) + '</label>';
+        } else {
+            html += '<span class="dashicons dashicons-tag" style="font-size:14px;width:14px;height:14px;color:var(--nc-text-light);align-self:center;"></span>';
+        }
+        html += '<select class="' + selectCls + '" data-slug="' + NC.escapeHtml(facet.slug) + '"' + changeHandler + ' title="' + NC.escapeHtml(facet.name) + '">';
+        html += '<option value="">' + NC.escapeHtml(facet.name) + '</option>';
+        facet.values.forEach(function(val) {
+            var display = val.length > 40 ? val.substring(0, 40) + '...' : val;
+            html += '<option value="' + NC.escapeHtml(val) + '">' + NC.escapeHtml(display) + '</option>';
+        });
+        html += '</select></div>';
+    });
+
+    $container.html(html);
+
+    if (target === 'triage') {
+        $container.show();
+    } else {
+        $panel.show();
+        // Auto-open advanced filters if facets are shown
+        if (!jQuery('#nc-advanced-filters').is(':visible')) {
+            jQuery('#nc-advanced-filters').slideDown(200);
+            jQuery('#nc-toggle-advanced').addClass('active');
+        }
     }
 };
 
@@ -885,7 +1028,18 @@ NC.triageSyncFiltersFromMain = function() {
     jQuery('#nc-triage-search').val(jQuery('#nc-search-input').val());
     jQuery('#nc-triage-has-image').val(jQuery('#nc-filter-has-image').val());
     jQuery('#nc-triage-orderby').val(jQuery('#nc-filter-orderby').val());
+
+    // Load Tainacan facets for the selected source in triage
+    var sourceVal = $triageSource.val();
+    if (sourceVal) {
+        NC.loadTainacanFacets(sourceVal, 'triage');
+    }
 };
+
+// Triage source change handler
+jQuery('#nc-triage-source').on('change', function() {
+    NC.loadTainacanFacets(jQuery(this).val(), 'triage');
+});
 
 NC.triageGetFilterParams = function() {
     var params = '';
@@ -897,6 +1051,13 @@ NC.triageGetFilterParams = function() {
     if (hasImage !== '') params += '&has_image=' + hasImage;
     var orderby = jQuery('#nc-triage-orderby').val();
     if (orderby && orderby !== 'id') params += '&orderby=' + orderby + '&order=ASC';
+    // Triage Tainacan facets
+    jQuery('.nc-triage-facet-select').each(function() {
+        var val = jQuery(this).val();
+        if (val) {
+            params += '&meta_' + jQuery(this).data('slug') + '=' + encodeURIComponent(val);
+        }
+    });
     return params;
 };
 
@@ -976,6 +1137,14 @@ NC.triageUpdateFilterInfo = function(total) {
     var hasImage = jQuery('#nc-triage-has-image').val();
     if (hasImage === '1') parts.push('com imagem');
     if (hasImage === '0') parts.push('sem imagem');
+    // Tainacan facets active
+    jQuery('.nc-triage-facet-select').each(function() {
+        var val = jQuery(this).val();
+        if (val) {
+            var name = jQuery(this).attr('title') || jQuery(this).data('slug');
+            parts.push(NC.escapeHtml(name) + ': ' + NC.escapeHtml(val.length > 25 ? val.substring(0, 25) + '...' : val));
+        }
+    });
 
     var html = '<span class="nc-triage-filter-total">' + total + ' itens encontrados</span>';
     if (parts.length > 0) {
@@ -997,6 +1166,8 @@ NC.triageClearFilters = function() {
     jQuery('#nc-triage-source').val('');
     jQuery('#nc-triage-has-image').val('');
     jQuery('#nc-triage-orderby').val('id');
+    jQuery('.nc-triage-facet-select').val('');
+    jQuery('#nc-triage-tainacan-facets').hide().empty();
     NC.triageLoadItems();
 };
 

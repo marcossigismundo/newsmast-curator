@@ -26,6 +26,10 @@ class Sources_Controller extends Base_REST_Controller {
         register_rest_route($this->namespace, '/' . $this->rest_base . '/test-tainacan', [
             ['methods' => 'POST', 'callback' => [$this, 'test_tainacan_search'], 'permission_callback' => [$this, 'check_permissions']],
         ]);
+
+        register_rest_route($this->namespace, '/' . $this->rest_base . '/(?P<id>[\d]+)/tainacan-facets', [
+            ['methods' => 'GET', 'callback' => [$this, 'get_tainacan_facets'], 'permission_callback' => [$this, 'check_permissions']],
+        ]);
     }
 
     public function get_items($request) {
@@ -104,6 +108,120 @@ class Sources_Controller extends Base_REST_Controller {
 
         $result = $connector->test_connection();
         return $this->prepare_response($result);
+    }
+
+    /**
+     * Retorna facetas (metadados filtráveis) de uma fonte Tainacan
+     * Busca definições na API Tainacan + valores distintos dos itens coletados localmente
+     */
+    public function get_tainacan_facets($request) {
+        $repo = new Source_Repository($this->database);
+        $source = $repo->find($request['id']);
+        if (!$source) {
+            return $this->prepare_error(__('Fonte não encontrada', 'newsmast-curator'), 'not_found', 404);
+        }
+        if ($source->get_connector_type() !== 'tainacan') {
+            return $this->prepare_response(['facets' => []]);
+        }
+
+        $config = $source->get_config();
+        $base_url = rtrim($config['url'] ?? $source->get_url(), '/');
+        $collection_id = $config['collection_id'] ?? '';
+
+        if (empty($collection_id)) {
+            return $this->prepare_error(__('ID da coleção não configurado', 'newsmast-curator'), 'missing_config', 400);
+        }
+
+        // Tenta cache primeiro
+        $cache_key = 'nc_tainacan_facets_' . $source->get_id();
+        $cached = get_transient($cache_key);
+
+        if ($cached === false) {
+            // Busca metadados da coleção na API Tainacan
+            $metadata_url = "{$base_url}/wp-json/tainacan/v2/collection/{$collection_id}/metadata";
+            $response = wp_remote_get($metadata_url, [
+                'timeout' => 15,
+                'sslverify' => true,
+                'user-agent' => 'Mozilla/5.0 (compatible; NewsmastCurator/1.0; +WordPress)',
+            ]);
+
+            if (is_wp_error($response) || wp_remote_retrieve_response_code($response) !== 200) {
+                // Fallback: extrair metadados dos itens já coletados
+                $cached = $this->extract_facets_from_local_items($source->get_id());
+            } else {
+                $metadata_defs = json_decode(wp_remote_retrieve_body($response), true);
+                $cached = $this->build_facets_from_tainacan_metadata($metadata_defs, $source->get_id());
+            }
+
+            set_transient($cache_key, $cached, HOUR_IN_SECONDS);
+        }
+
+        // Busca valores distintos do DB local para cada faceta
+        $item_repo = new \NewsmastCurator\Repositories\Item_Repository($this->database);
+        foreach ($cached as &$facet) {
+            $facet['values'] = $item_repo->get_distinct_metadata_values(
+                $source->get_id(),
+                $facet['slug']
+            );
+        }
+        unset($facet);
+
+        return $this->prepare_response(['facets' => $cached]);
+    }
+
+    /**
+     * Constrói facetas a partir das definições de metadados da API Tainacan
+     */
+    private function build_facets_from_tainacan_metadata($metadata_defs, $source_id) {
+        if (!is_array($metadata_defs)) return [];
+
+        $facets = [];
+        // Tipos de metadado que fazem sentido como filtro
+        $filterable_types = [
+            'Tainacan\\Metadata_Types\\Text',
+            'Tainacan\\Metadata_Types\\Selectbox',
+            'Tainacan\\Metadata_Types\\Taxonomy',
+            'Tainacan\\Metadata_Types\\Relationship',
+            'Tainacan\\Metadata_Types\\Numeric',
+            'Tainacan\\Metadata_Types\\Date',
+        ];
+
+        foreach ($metadata_defs as $meta) {
+            if (empty($meta['name']) || empty($meta['slug'])) continue;
+            // Ignora metadados do core que já são campos diretos (título, descrição)
+            if (in_array($meta['slug'], ['title', 'description', 'document'], true)) continue;
+            // Ignora metadados desabilitados
+            if (isset($meta['enabled']) && !$meta['enabled']) continue;
+
+            $type = $meta['metadata_type'] ?? '';
+            $type_short = 'text';
+            if (strpos($type, 'Taxonomy') !== false) {
+                $type_short = 'taxonomy';
+            } elseif (strpos($type, 'Selectbox') !== false) {
+                $type_short = 'select';
+            } elseif (strpos($type, 'Numeric') !== false) {
+                $type_short = 'numeric';
+            } elseif (strpos($type, 'Date') !== false) {
+                $type_short = 'date';
+            }
+
+            $facets[] = [
+                'slug' => $meta['slug'],
+                'name' => $meta['name'],
+                'type' => $type_short,
+                'values' => [],
+            ];
+        }
+
+        return $facets;
+    }
+
+    /**
+     * Fallback: extrai facetas dos metadados dos itens já coletados
+     */
+    private function extract_facets_from_local_items($source_id) {
+        $item_repo = new \NewsmastCurator\Repositories\Item_Repository($this->database);
+        return $item_repo->get_metadata_keys_for_source($source_id);
     }
 
     public function collect($request) {

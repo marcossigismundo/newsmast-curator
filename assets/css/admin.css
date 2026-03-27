@@ -2428,6 +2428,53 @@ body.folded .nc-sidebar {
     height: 16px;
 }
 
+/* Tainacan Facets */
+.nc-tainacan-facets {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px dashed var(--nc-border);
+}
+
+.nc-facets-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+    font-size: 13px;
+    color: var(--nc-accent);
+}
+
+.nc-facets-header .dashicons {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+}
+
+.nc-facets-source-label {
+    font-weight: 400;
+    color: var(--nc-text-light);
+    font-size: 12px;
+}
+
+.nc-facets-source-label::before {
+    content: '—';
+    margin: 0 6px;
+}
+
+.nc-facet-select {
+    font-size: 13px;
+}
+
+/* Triage Facets Row */
+.nc-triage-facets-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding-top: 8px;
+    border-top: 1px dashed var(--nc-border);
+    margin-top: 8px;
+}
+
 /* Triage Filters */
 .nc-triage-filters {
     padding: 12px 24px;

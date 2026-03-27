@@ -241,6 +241,23 @@ class Item_Repository extends Base_Repository {
             $conditions[] = $this->wpdb->prepare('collection_type = %s', $args['collection_type']);
         }
 
+        // Filtros de metadados Tainacan (JSON_EXTRACT ou LIKE fallback)
+        if (!empty($args['meta_filters']) && is_array($args['meta_filters'])) {
+            foreach ($args['meta_filters'] as $slug => $value) {
+                $json_path = '$."' . esc_sql($slug) . '".value_as_string';
+                // Tenta JSON_EXTRACT primeiro, com fallback LIKE
+                if ($this->supports_json_extract()) {
+                    $conditions[] = $this->wpdb->prepare(
+                        "JSON_UNQUOTE(JSON_EXTRACT(metadata, %s)) = %s",
+                        $json_path, $value
+                    );
+                } else {
+                    $like_pattern = '%"' . $this->wpdb->esc_like($slug) . '"%"value_as_string"%"' . $this->wpdb->esc_like($value) . '"%';
+                    $conditions[] = $this->wpdb->prepare('metadata LIKE %s', $like_pattern);
+                }
+            }
+        }
+
         if (empty($conditions)) {
             return '';
         }
@@ -258,5 +275,115 @@ class Item_Repository extends Base_Repository {
             $sql = "SELECT DISTINCT author FROM {$this->table_name} WHERE author IS NOT NULL AND author != '' ORDER BY author ASC LIMIT 200";
         }
         return $this->wpdb->get_col($sql);
+    }
+
+    /**
+     * Verifica se o banco suporta JSON_EXTRACT
+     */
+    private function supports_json_extract() {
+        static $supports = null;
+        if ($supports === null) {
+            $this->wpdb->suppress_errors(true);
+            $this->wpdb->query("SELECT JSON_EXTRACT('{}', '$.test')");
+            $supports = empty($this->wpdb->last_error);
+            $this->wpdb->suppress_errors(false);
+        }
+        return $supports;
+    }
+
+    /**
+     * Extrai valores distintos de um metadado específico para uma fonte
+     * Usa JSON_EXTRACT para MySQL 5.7+ / MariaDB 10.2+
+     */
+    public function get_distinct_metadata_values($source_id, $meta_slug) {
+        $json_path = '$."' . esc_sql($meta_slug) . '".value_as_string';
+
+        // Tenta JSON_EXTRACT (MySQL 5.7+ / MariaDB 10.2+)
+        $sql = $this->wpdb->prepare(
+            "SELECT DISTINCT JSON_UNQUOTE(JSON_EXTRACT(metadata, %s)) AS val
+             FROM {$this->table_name}
+             WHERE source_id = %d
+               AND metadata IS NOT NULL
+               AND JSON_EXTRACT(metadata, %s) IS NOT NULL
+             ORDER BY val ASC
+             LIMIT 100",
+            $json_path, $source_id, $json_path
+        );
+
+        $this->wpdb->suppress_errors(true);
+        $results = $this->wpdb->get_col($sql);
+        $this->wpdb->suppress_errors(false);
+
+        if ($this->wpdb->last_error) {
+            // Fallback para LIKE (bancos sem JSON_EXTRACT)
+            return $this->get_distinct_metadata_values_fallback($source_id, $meta_slug);
+        }
+
+        // Filtra valores nulos ou vazios
+        return array_values(array_filter($results, function($v) {
+            return $v !== null && $v !== '' && $v !== 'null';
+        }));
+    }
+
+    /**
+     * Fallback: extrai valores de metadados via PHP (para MySQL sem JSON support)
+     */
+    private function get_distinct_metadata_values_fallback($source_id, $meta_slug) {
+        $sql = $this->wpdb->prepare(
+            "SELECT metadata FROM {$this->table_name}
+             WHERE source_id = %d AND metadata IS NOT NULL AND metadata != ''
+             LIMIT 500",
+            $source_id
+        );
+        $rows = $this->wpdb->get_col($sql);
+
+        $values = [];
+        foreach ($rows as $json) {
+            $data = json_decode($json, true);
+            if (!is_array($data)) continue;
+            if (isset($data[$meta_slug]['value_as_string'])) {
+                $val = trim($data[$meta_slug]['value_as_string']);
+                if ($val !== '') {
+                    $values[$val] = true;
+                }
+            }
+        }
+
+        $result = array_keys($values);
+        sort($result);
+        return array_slice($result, 0, 100);
+    }
+
+    /**
+     * Extrai slugs de metadados existentes nos itens de uma fonte (fallback sem API Tainacan)
+     */
+    public function get_metadata_keys_for_source($source_id) {
+        $sql = $this->wpdb->prepare(
+            "SELECT metadata FROM {$this->table_name}
+             WHERE source_id = %d AND metadata IS NOT NULL AND metadata != ''
+             LIMIT 20",
+            $source_id
+        );
+        $rows = $this->wpdb->get_col($sql);
+
+        $keys = [];
+        foreach ($rows as $json) {
+            $data = json_decode($json, true);
+            if (!is_array($data)) continue;
+            foreach ($data as $slug => $meta) {
+                if (isset($keys[$slug])) continue;
+                if (empty($meta['name']) || empty($meta['value_as_string'])) continue;
+                // Ignora campos core
+                if (in_array($slug, ['title', 'description', 'document'], true)) continue;
+                $keys[$slug] = [
+                    'slug' => $slug,
+                    'name' => $meta['name'],
+                    'type' => 'text',
+                    'values' => [],
+                ];
+            }
+        }
+
+        return array_values($keys);
     }
 }

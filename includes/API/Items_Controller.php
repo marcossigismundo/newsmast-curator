@@ -49,6 +49,18 @@ class Items_Controller extends Base_REST_Controller {
         $args['per_page'] = $request['per_page'] ?? 20;
         $args['page'] = $request['page'] ?? 1;
 
+        // Filtros de metadados Tainacan (meta_slug=value)
+        $meta_filters = [];
+        foreach ($request->get_params() as $key => $value) {
+            if (strpos($key, 'meta_') === 0 && $value !== '') {
+                $meta_slug = sanitize_key(substr($key, 5));
+                $meta_filters[$meta_slug] = sanitize_text_field($value);
+            }
+        }
+        if (!empty($meta_filters)) {
+            $args['meta_filters'] = $meta_filters;
+        }
+
         $items = $repo->find_all($args);
         $total = $repo->count($args);
 
