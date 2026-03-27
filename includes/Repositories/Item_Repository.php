@@ -224,10 +224,39 @@ class Item_Repository extends Base_Repository {
             );
         }
 
+        if (!empty($args['author'])) {
+            $like = '%' . $this->wpdb->esc_like($args['author']) . '%';
+            $conditions[] = $this->wpdb->prepare('author LIKE %s', $like);
+        }
+
+        if (isset($args['has_image']) && $args['has_image'] !== '') {
+            if ($args['has_image']) {
+                $conditions[] = "image_url IS NOT NULL AND image_url != ''";
+            } else {
+                $conditions[] = "(image_url IS NULL OR image_url = '')";
+            }
+        }
+
+        if (!empty($args['collection_type'])) {
+            $conditions[] = $this->wpdb->prepare('collection_type = %s', $args['collection_type']);
+        }
+
         if (empty($conditions)) {
             return '';
         }
 
         return 'WHERE ' . implode(' AND ', $conditions);
+    }
+
+    /**
+     * Obtém lista de autores distintos
+     */
+    public function get_distinct_authors($args = []) {
+        $where = $this->prepare_where($args);
+        $sql = "SELECT DISTINCT author FROM {$this->table_name} {$where} AND author IS NOT NULL AND author != '' ORDER BY author ASC LIMIT 200";
+        if (empty($where)) {
+            $sql = "SELECT DISTINCT author FROM {$this->table_name} WHERE author IS NOT NULL AND author != '' ORDER BY author ASC LIMIT 200";
+        }
+        return $this->wpdb->get_col($sql);
     }
 }

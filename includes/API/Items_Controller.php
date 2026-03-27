@@ -12,6 +12,10 @@ class Items_Controller extends Base_REST_Controller {
             ['methods' => 'GET', 'callback' => [$this, 'get_items'], 'permission_callback' => [$this, 'check_permissions']],
         ]);
 
+        register_rest_route($this->namespace, '/' . $this->rest_base . '/(?P<id>[\d]+)', [
+            ['methods' => 'GET', 'callback' => [$this, 'get_item'], 'permission_callback' => [$this, 'check_permissions']],
+        ]);
+
         register_rest_route($this->namespace, '/' . $this->rest_base . '/(?P<id>[\d]+)/curate', [
             ['methods' => 'POST', 'callback' => [$this, 'curate'], 'permission_callback' => [$this, 'check_permissions']],
         ]);
@@ -23,6 +27,10 @@ class Items_Controller extends Base_REST_Controller {
         register_rest_route($this->namespace, '/' . $this->rest_base . '/stats', [
             ['methods' => 'GET', 'callback' => [$this, 'get_stats'], 'permission_callback' => [$this, 'check_permissions']],
         ]);
+
+        register_rest_route($this->namespace, '/' . $this->rest_base . '/authors', [
+            ['methods' => 'GET', 'callback' => [$this, 'get_authors'], 'permission_callback' => [$this, 'check_permissions']],
+        ]);
     }
 
     public function get_items($request) {
@@ -30,6 +38,14 @@ class Items_Controller extends Base_REST_Controller {
         $args = [];
         if (isset($request['curated'])) $args['curated'] = (int) $request['curated'];
         if (isset($request['source_id'])) $args['source_id'] = (int) $request['source_id'];
+        if (!empty($request['search'])) $args['search'] = sanitize_text_field($request['search']);
+        if (!empty($request['date_from'])) $args['date_from'] = sanitize_text_field($request['date_from']);
+        if (!empty($request['date_to'])) $args['date_to'] = sanitize_text_field($request['date_to']);
+        if (!empty($request['author'])) $args['author'] = sanitize_text_field($request['author']);
+        if (isset($request['has_image']) && $request['has_image'] !== '') $args['has_image'] = (int) $request['has_image'];
+        if (!empty($request['collection_type'])) $args['collection_type'] = sanitize_text_field($request['collection_type']);
+        if (!empty($request['orderby'])) $args['orderby'] = sanitize_key($request['orderby']);
+        if (!empty($request['order'])) $args['order'] = sanitize_key($request['order']);
         $args['per_page'] = $request['per_page'] ?? 20;
         $args['page'] = $request['page'] ?? 1;
 
@@ -55,6 +71,21 @@ class Items_Controller extends Base_REST_Controller {
         ]);
     }
 
+    public function get_item($request) {
+        $repo = new Item_Repository($this->database);
+        $item = $repo->find($request['id']);
+        if (!$item) {
+            return $this->prepare_error(__('Item não encontrado', 'newsmast-curator'), 'not_found', 404);
+        }
+        $sources_map = $this->get_sources_map();
+        $data = $item->to_api_response();
+        $source = $sources_map[$item->get_source_id()] ?? null;
+        $data['source_name'] = $source ? $source->get_name() : '';
+        $config = $source ? $source->get_config() : [];
+        $data['search_terms'] = $config['search_terms'] ?? '';
+        return $this->prepare_response($data);
+    }
+
     public function curate($request) {
         $repo = new Item_Repository($this->database);
         $user_id = get_current_user_id();
@@ -77,6 +108,14 @@ class Items_Controller extends Base_REST_Controller {
     public function get_stats($request) {
         $repo = new Item_Repository($this->database);
         return $this->prepare_response($repo->get_curated_stats());
+    }
+
+    public function get_authors($request) {
+        $repo = new Item_Repository($this->database);
+        $args = [];
+        if (isset($request['curated'])) $args['curated'] = (int) $request['curated'];
+        $authors = $repo->get_distinct_authors($args);
+        return $this->prepare_response(['authors' => $authors]);
     }
 
     /**
