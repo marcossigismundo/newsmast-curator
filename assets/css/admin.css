@@ -2428,6 +2428,88 @@ body.folded .nc-sidebar {
     height: 16px;
 }
 
+/* Triage Filters */
+.nc-triage-filters {
+    padding: 12px 24px;
+    background: var(--nc-secondary);
+    border-bottom: 1px solid var(--nc-border);
+}
+
+.nc-triage-filters-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.nc-triage-filter-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: 0 0 auto;
+}
+
+.nc-triage-filter-group > .dashicons {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+    color: var(--nc-text-light);
+}
+
+.nc-triage-filter-input {
+    width: 220px;
+    padding: 7px 12px;
+    font-size: 13px;
+    border-radius: 6px;
+    border: 1px solid var(--nc-border);
+    background: var(--nc-white);
+}
+
+.nc-triage-filter-input:focus {
+    outline: none;
+    border-color: var(--nc-accent);
+    box-shadow: 0 0 0 2px rgba(69, 123, 157, 0.15);
+}
+
+.nc-triage-filter-select {
+    width: auto;
+    min-width: 140px;
+    padding: 7px 12px;
+    font-size: 13px;
+    border-radius: 6px;
+    border: 1px solid var(--nc-border);
+    background: var(--nc-white);
+}
+
+.nc-triage-filter-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 8px;
+    font-size: 12px;
+    color: var(--nc-text-light);
+}
+
+.nc-triage-filter-total {
+    font-weight: 600;
+    color: var(--nc-accent);
+}
+
+.nc-triage-filter-tags {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.nc-triage-filter-tag {
+    background: var(--nc-white);
+    border: 1px solid var(--nc-border);
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    color: var(--nc-text);
+}
+
 .nc-triage-body {
     flex: 1;
     display: flex;
@@ -2611,6 +2693,19 @@ body.folded .nc-sidebar {
 
     .nc-triage-shortcuts {
         display: none;
+    }
+
+    .nc-triage-filters-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .nc-triage-filter-input {
+        width: 100%;
+    }
+
+    .nc-triage-filter-select {
+        width: 100%;
     }
 
     .nc-search-filters {

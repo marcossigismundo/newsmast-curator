@@ -204,6 +204,45 @@
             <span class="dashicons dashicons-no-alt"></span> <?php _e('Sair', 'newsmast-curator'); ?>
         </button>
     </div>
+    <!-- Triage Filters -->
+    <div class="nc-triage-filters" id="nc-triage-filters">
+        <div class="nc-triage-filters-row">
+            <div class="nc-triage-filter-group">
+                <span class="dashicons dashicons-search"></span>
+                <input type="text" id="nc-triage-search" class="nc-form-control nc-triage-filter-input" placeholder="<?php esc_attr_e('Buscar por título, conteúdo ou autor...', 'newsmast-curator'); ?>">
+            </div>
+            <div class="nc-triage-filter-group">
+                <span class="dashicons dashicons-admin-site-alt3"></span>
+                <select id="nc-triage-source" class="nc-form-control nc-triage-filter-select">
+                    <option value=""><?php _e('Todas as fontes', 'newsmast-curator'); ?></option>
+                </select>
+            </div>
+            <div class="nc-triage-filter-group">
+                <span class="dashicons dashicons-format-image"></span>
+                <select id="nc-triage-has-image" class="nc-form-control nc-triage-filter-select">
+                    <option value=""><?php _e('Todos', 'newsmast-curator'); ?></option>
+                    <option value="1"><?php _e('Com imagem', 'newsmast-curator'); ?></option>
+                    <option value="0"><?php _e('Sem imagem', 'newsmast-curator'); ?></option>
+                </select>
+            </div>
+            <div class="nc-triage-filter-group">
+                <span class="dashicons dashicons-sort"></span>
+                <select id="nc-triage-orderby" class="nc-form-control nc-triage-filter-select">
+                    <option value="id"><?php _e('Mais recentes', 'newsmast-curator'); ?></option>
+                    <option value="title"><?php _e('Título (A-Z)', 'newsmast-curator'); ?></option>
+                    <option value="author"><?php _e('Autor', 'newsmast-curator'); ?></option>
+                    <option value="collected_at"><?php _e('Data de coleta', 'newsmast-curator'); ?></option>
+                </select>
+            </div>
+            <button class="nc-button nc-button-primary nc-btn-sm" onclick="NC.triageApplyFilters()">
+                <span class="dashicons dashicons-update"></span> <?php _e('Aplicar', 'newsmast-curator'); ?>
+            </button>
+            <button class="nc-button nc-button-outline nc-btn-sm" onclick="NC.triageClearFilters()">
+                <span class="dashicons dashicons-dismiss"></span>
+            </button>
+        </div>
+        <div class="nc-triage-filter-info" id="nc-triage-filter-info"></div>
+    </div>
     <div class="nc-triage-body">
         <div class="nc-triage-card" id="nc-triage-card">
             <div class="nc-triage-image-wrap">
@@ -242,6 +281,7 @@
             <span><kbd>Z</kbd> <?php _e('Desfazer', 'newsmast-curator'); ?></span>
             <span><kbd>Espaço</kbd> <?php _e('Ver original', 'newsmast-curator'); ?></span>
             <span><kbd>Esc</kbd> <?php _e('Sair', 'newsmast-curator'); ?></span>
+            <span><kbd>F</kbd> <?php _e('Filtrar', 'newsmast-curator'); ?></span>
         </div>
     </div>
 </div>
@@ -829,14 +869,71 @@ NC._triageUndoStack = [];
 NC._triageActive = false;
 
 NC.openTriageMode = function() {
-    // Load uncurated items with current filters
-    var apiPath = ncData.apiUrl + '/items?curated=0&per_page=200';
-    apiPath += NC.getFilterParams();
+    // Populate triage filters from main page filters
+    NC.triageSyncFiltersFromMain();
+    NC.triageLoadItems();
+};
 
-    NC.showNotice('info', 'Carregando itens para triagem...');
+NC.triageSyncFiltersFromMain = function() {
+    // Copy source options from main dropdown
+    var $mainSource = jQuery('#nc-filter-source');
+    var $triageSource = jQuery('#nc-triage-source');
+    $triageSource.html($mainSource.html());
+    $triageSource.val($mainSource.val());
+
+    // Copy other filter values
+    jQuery('#nc-triage-search').val(jQuery('#nc-search-input').val());
+    jQuery('#nc-triage-has-image').val(jQuery('#nc-filter-has-image').val());
+    jQuery('#nc-triage-orderby').val(jQuery('#nc-filter-orderby').val());
+};
+
+NC.triageGetFilterParams = function() {
+    var params = '';
+    var search = jQuery('#nc-triage-search').val();
+    if (search) params += '&search=' + encodeURIComponent(search);
+    var source = jQuery('#nc-triage-source').val();
+    if (source) params += '&source_id=' + source;
+    var hasImage = jQuery('#nc-triage-has-image').val();
+    if (hasImage !== '') params += '&has_image=' + hasImage;
+    var orderby = jQuery('#nc-triage-orderby').val();
+    if (orderby && orderby !== 'id') params += '&orderby=' + orderby + '&order=ASC';
+    return params;
+};
+
+NC.triageLoadItems = function() {
+    var apiPath = ncData.apiUrl + '/items?curated=0&per_page=200';
+    apiPath += NC.triageGetFilterParams();
+
+    // Show loading in card area
+    jQuery('#nc-triage-card').html(
+        '<div style="text-align:center;padding:80px 20px;">' +
+            '<div class="nc-spinner" style="margin:0 auto 16px;"></div>' +
+            '<p style="color:var(--nc-text-light);">Carregando itens...</p>' +
+        '</div>'
+    );
+
+    // Show overlay if not already visible
+    if (!jQuery('#nc-triage-overlay').is(':visible')) {
+        jQuery('#nc-triage-overlay').fadeIn(200);
+        jQuery('body').css('overflow', 'hidden');
+    }
+
+    NC._triageActive = true;
+
     wp.apiFetch({path: apiPath}).then(function(data) {
         if (!data.items || data.items.length === 0) {
-            NC.showNotice('warning', 'Nenhum item para triagem');
+            NC._triageItems = [];
+            NC._triageIndex = 0;
+            jQuery('#nc-triage-card').html(
+                '<div style="text-align:center;padding:60px 20px;">' +
+                    '<span class="dashicons dashicons-inbox" style="font-size:50px;width:50px;height:50px;color:var(--nc-border);display:block;margin:0 auto 16px;"></span>' +
+                    '<h3 style="margin:0 0 8px;">Nenhum item encontrado</h3>' +
+                    '<p style="color:var(--nc-text-light);">Tente ajustar os filtros acima para encontrar itens.</p>' +
+                '</div>'
+            );
+            NC.triageUpdateFilterInfo(0);
+            jQuery('#nc-triage-counter').text('0 / 0');
+            jQuery('#nc-triage-progress-fill').css('width', '0%');
             return;
         }
         NC._triageItems = data.items;
@@ -844,14 +941,63 @@ NC.openTriageMode = function() {
         NC._triageApproved = 0;
         NC._triageSkipped = 0;
         NC._triageUndoStack = [];
-        NC._triageActive = true;
 
-        jQuery('#nc-triage-overlay').fadeIn(200);
-        jQuery('body').css('overflow', 'hidden');
+        // Restore card structure
+        jQuery('#nc-triage-card').html(
+            '<div class="nc-triage-image-wrap">' +
+                '<img id="nc-triage-image" src="" alt="">' +
+                '<div id="nc-triage-no-image" class="nc-triage-no-image" style="display:none;">' +
+                    '<span class="dashicons dashicons-format-image"></span>' +
+                    '<span>Sem imagem</span>' +
+                '</div>' +
+            '</div>' +
+            '<div class="nc-triage-info">' +
+                '<h2 id="nc-triage-title"></h2>' +
+                '<div class="nc-triage-meta" id="nc-triage-meta"></div>' +
+                '<div class="nc-triage-excerpt" id="nc-triage-excerpt"></div>' +
+            '</div>'
+        );
+
+        NC.triageUpdateFilterInfo(data.total || data.items.length);
         NC.renderTriageItem();
     }).catch(function(e) {
         NC.showNotice('error', 'Erro ao carregar itens: ' + (e.message || ''));
+        NC._triageActive = false;
     });
+};
+
+NC.triageUpdateFilterInfo = function(total) {
+    var parts = [];
+    var search = jQuery('#nc-triage-search').val();
+    if (search) parts.push('busca: "' + NC.escapeHtml(search) + '"');
+    var sourceText = jQuery('#nc-triage-source option:selected').text();
+    var sourceVal = jQuery('#nc-triage-source').val();
+    if (sourceVal) parts.push('fonte: ' + NC.escapeHtml(sourceText));
+    var hasImage = jQuery('#nc-triage-has-image').val();
+    if (hasImage === '1') parts.push('com imagem');
+    if (hasImage === '0') parts.push('sem imagem');
+
+    var html = '<span class="nc-triage-filter-total">' + total + ' itens encontrados</span>';
+    if (parts.length > 0) {
+        html += '<span class="nc-triage-filter-tags">';
+        parts.forEach(function(p) {
+            html += '<span class="nc-triage-filter-tag">' + p + '</span>';
+        });
+        html += '</span>';
+    }
+    jQuery('#nc-triage-filter-info').html(html);
+};
+
+NC.triageApplyFilters = function() {
+    NC.triageLoadItems();
+};
+
+NC.triageClearFilters = function() {
+    jQuery('#nc-triage-search').val('');
+    jQuery('#nc-triage-source').val('');
+    jQuery('#nc-triage-has-image').val('');
+    jQuery('#nc-triage-orderby').val('id');
+    NC.triageLoadItems();
 };
 
 NC.renderTriageItem = function() {
@@ -967,6 +1113,16 @@ jQuery(document).on('keydown', function(e) {
     if (!NC._triageActive) return;
     if (jQuery('#nc-lightbox').is(':visible')) return;
 
+    // Don't capture shortcuts when typing in triage filter inputs
+    var tag = (e.target.tagName || '').toLowerCase();
+    if (tag === 'input' || tag === 'select' || tag === 'textarea') {
+        if (e.key === 'Enter' && jQuery(e.target).closest('.nc-triage-filters').length) {
+            e.preventDefault();
+            NC.triageApplyFilters();
+        }
+        return;
+    }
+
     if (e.key === 'j' || e.key === 'J') {
         e.preventDefault();
         NC.triageAction('skip');
@@ -982,6 +1138,9 @@ jQuery(document).on('keydown', function(e) {
         if (item && item.url) window.open(item.url, '_blank');
     } else if (e.key === 'Escape') {
         NC.closeTriageMode();
+    } else if (e.key === 'f' || e.key === 'F') {
+        e.preventDefault();
+        jQuery('#nc-triage-search').focus();
     }
 });
 
