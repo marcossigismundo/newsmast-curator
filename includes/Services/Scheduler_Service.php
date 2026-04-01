@@ -95,7 +95,17 @@ class Scheduler_Service {
                 ]);
             }
 
-            $result = $mastodon_service->post_status($content, $media_ids);
+            // Thread support: resolve in_reply_to_id for threaded publications
+            $in_reply_to_id = $this->resolve_thread_reply_id($pub);
+
+            // Thread predecessor not yet published — reschedule
+            if ($in_reply_to_id === '__THREAD_WAIT__') {
+                $pub->reschedule(2);
+                $this->pub_repo->update($pub);
+                return;
+            }
+
+            $result = $mastodon_service->post_status($content, $media_ids, $in_reply_to_id);
 
             if ($result && isset($result['id'])) {
                 $pub->mark_as_published($result['id'], $result['url'] ?? '');
@@ -175,6 +185,64 @@ class Scheduler_Service {
         $repo = new Mastodon_Account_Repository($this->database);
         $account = $repo->find($account_id);
         return $account ? $account->get_name() : "#{$account_id}";
+    }
+
+    /**
+     * Resolve o in_reply_to_id para publicações em thread
+     *
+     * @param \NewsmastCurator\Models\Publication $pub
+     * @return string|null Mastodon ID do post anterior na thread
+     */
+    private function resolve_thread_reply_id($pub) {
+        if (!$pub->is_thread() || $pub->get_thread_position() <= 0) {
+            return null;
+        }
+
+        $prev = $this->pub_repo->find_last_published_in_thread(
+            $pub->get_thread_id(),
+            $pub->get_thread_position()
+        );
+
+        if ($prev && $prev->get_mastodon_id()) {
+            $this->logger->info('Thread: encadeando como resposta', [
+                'related_type' => 'publication',
+                'related_id' => $pub->get_id(),
+                'details' => sprintf(
+                    'Thread %s | Posição %d → reply_to Mastodon ID %s (posição %d)',
+                    $pub->get_thread_id(),
+                    $pub->get_thread_position(),
+                    $prev->get_mastodon_id(),
+                    $prev->get_thread_position()
+                ),
+            ]);
+            return $prev->get_mastodon_id();
+        }
+
+        // Previous items not yet published — skip thread for now
+        if (!$this->pub_repo->are_previous_thread_items_published(
+            $pub->get_thread_id(),
+            $pub->get_thread_position()
+        )) {
+            $this->logger->warning('Thread: itens anteriores pendentes, reagendando', [
+                'related_type' => 'publication',
+                'related_id' => $pub->get_id(),
+                'details' => sprintf(
+                    'Thread %s | Posição %d aguardando predecessores',
+                    $pub->get_thread_id(),
+                    $pub->get_thread_position()
+                ),
+            ]);
+            // Return a special marker to indicate rescheduling is needed
+            return '__THREAD_WAIT__';
+        }
+
+        $this->logger->warning('Thread: post anterior não encontrado, publicando sem encadeamento', [
+            'related_type' => 'publication',
+            'related_id' => $pub->get_id(),
+            'details' => sprintf('Thread %s | Posição %d', $pub->get_thread_id(), $pub->get_thread_position()),
+        ]);
+
+        return null;
     }
 
     private function upload_item_image($pub, $mastodon_service) {

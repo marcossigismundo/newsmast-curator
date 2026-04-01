@@ -16,6 +16,8 @@ class Publication {
     private $scheduled_for = '';
     private $content = '';
     private $alt_text = '';
+    private $thread_id = null;
+    private $thread_position = null;
     private $media_ids = [];
     private $mastodon_id = null;
     private $mastodon_url = null;
@@ -40,6 +42,8 @@ class Publication {
     public function get_scheduled_for() { return $this->scheduled_for; }
     public function get_content() { return $this->content; }
     public function get_alt_text() { return $this->alt_text; }
+    public function get_thread_id() { return $this->thread_id; }
+    public function get_thread_position() { return $this->thread_position; }
     public function get_media_ids() { return $this->media_ids; }
     public function get_mastodon_id() { return $this->mastodon_id; }
     public function get_mastodon_url() { return $this->mastodon_url; }
@@ -58,6 +62,8 @@ class Publication {
     public function set_scheduled_for($datetime) { $this->scheduled_for = $datetime; }
     public function set_content($content) { $this->content = sanitize_textarea_field($content); }
     public function set_alt_text($text) { $this->alt_text = sanitize_textarea_field($text); }
+    public function set_thread_id($id) { $this->thread_id = $id ? sanitize_text_field($id) : null; }
+    public function set_thread_position($pos) { $this->thread_position = $pos !== null ? (int) $pos : null; }
 
     public function set_media_ids($ids) {
         if (is_string($ids)) {
@@ -181,6 +187,13 @@ class Publication {
      *
      * @return bool
      */
+    /**
+     * Verifica se faz parte de uma thread
+     */
+    public function is_thread() {
+        return !empty($this->thread_id);
+    }
+
     public function is_ready_to_process() {
         if (!$this->is_scheduled()) {
             return false;
@@ -208,6 +221,8 @@ class Publication {
         $pub->set_scheduled_for($row->scheduled_for ?? '');
         $pub->set_content($row->content ?? '');
         $pub->set_alt_text($row->alt_text ?? '');
+        $pub->set_thread_id($row->thread_id ?? null);
+        $pub->set_thread_position($row->thread_position ?? null);
         $pub->set_media_ids($row->media_ids ?? '[]');
         $pub->set_mastodon_id($row->mastodon_id ?? null);
         $pub->set_mastodon_url($row->mastodon_url ?? null);
@@ -234,6 +249,8 @@ class Publication {
             'scheduled_for' => $this->scheduled_for,
             'content' => $this->content,
             'alt_text' => $this->alt_text,
+            'thread_id' => $this->thread_id,
+            'thread_position' => $this->thread_position,
             'media_ids' => wp_json_encode($this->media_ids),
             'mastodon_id' => $this->mastodon_id,
             'mastodon_url' => $this->mastodon_url,
@@ -267,6 +284,9 @@ class Publication {
             'content' => $this->content,
             'alt_text' => $this->alt_text,
             'character_count' => mb_strlen($this->content),
+            'thread_id' => $this->thread_id,
+            'thread_position' => $this->thread_position,
+            'is_thread' => $this->is_thread(),
             'has_media' => !empty($this->media_ids),
             'media_count' => count($this->media_ids),
             'mastodon_id' => $this->mastodon_id,

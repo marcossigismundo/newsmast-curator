@@ -28,7 +28,7 @@ class Database {
      *
      * @var string
      */
-    private $db_version = '1.3.0';
+    private $db_version = '1.4.0';
 
     /**
      * Construtor
@@ -90,6 +90,7 @@ class Database {
             $this->migrate_items_collection_type();
             $this->migrate_publications_mastodon_account();
             $this->migrate_publications_alt_text();
+            $this->migrate_publications_thread();
 
             update_option('nc_db_version', $this->db_version);
 
@@ -368,6 +369,19 @@ class Database {
         $row = $this->wpdb->get_row("SHOW COLUMNS FROM {$table} LIKE 'alt_text'");
         if (!$row) {
             $this->wpdb->query("ALTER TABLE {$table} ADD COLUMN alt_text TEXT NULL AFTER content");
+        }
+    }
+
+    /**
+     * Migração: adiciona campos de thread à tabela publications
+     */
+    private function migrate_publications_thread() {
+        $table = $this->tables['publications'];
+        $row = $this->wpdb->get_row("SHOW COLUMNS FROM {$table} LIKE 'thread_id'");
+        if (!$row) {
+            $this->wpdb->query("ALTER TABLE {$table} ADD COLUMN thread_id VARCHAR(50) NULL AFTER alt_text");
+            $this->wpdb->query("ALTER TABLE {$table} ADD COLUMN thread_position INT NULL AFTER thread_id");
+            $this->wpdb->query("ALTER TABLE {$table} ADD KEY idx_thread_id (thread_id)");
         }
     }
 

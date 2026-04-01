@@ -34,7 +34,7 @@ class Mastodon_Service {
         return $this->account_id;
     }
 
-    public function post_status($content, $media_ids = []) {
+    public function post_status($content, $media_ids = [], $in_reply_to_id = null) {
         if (empty($this->api_base_url) || empty($this->access_token)) {
             throw new \Exception(__('Mastodon não configurado', 'newsmast-curator'));
         }
@@ -44,6 +44,10 @@ class Mastodon_Service {
 
         if (!empty($media_ids)) {
             $data['media_ids'] = $media_ids;
+        }
+
+        if (!empty($in_reply_to_id)) {
+            $data['in_reply_to_id'] = $in_reply_to_id;
         }
 
         return $this->make_request($endpoint, 'POST', $data);

@@ -241,6 +241,68 @@ class Publication_Repository extends Base_Repository {
     }
 
     /**
+     * Busca o último post publicado na thread antes de uma posição
+     * Usado pelo scheduler para encadear replies
+     *
+     * @param string $thread_id
+     * @param int $before_position
+     * @return Publication|null
+     */
+    public function find_last_published_in_thread($thread_id, $before_position) {
+        $sql = $this->wpdb->prepare(
+            "SELECT * FROM {$this->table_name}
+             WHERE thread_id = %s AND thread_position < %d AND status = 'published'
+             ORDER BY thread_position DESC
+             LIMIT 1",
+            $thread_id,
+            $before_position
+        );
+
+        $row = $this->wpdb->get_row($sql);
+        return $row ? Publication::from_row($row) : null;
+    }
+
+    /**
+     * Busca todas as publicações de uma thread
+     *
+     * @param string $thread_id
+     * @return array
+     */
+    public function find_by_thread($thread_id) {
+        $sql = $this->wpdb->prepare(
+            "SELECT * FROM {$this->table_name}
+             WHERE thread_id = %s
+             ORDER BY thread_position ASC",
+            $thread_id
+        );
+
+        $rows = $this->wpdb->get_results($sql);
+        return array_map([Publication::class, 'from_row'], $rows);
+    }
+
+    /**
+     * Verifica se todas as publicações anteriores na thread foram publicadas
+     *
+     * @param string $thread_id
+     * @param int $position
+     * @return bool
+     */
+    public function are_previous_thread_items_published($thread_id, $position) {
+        if ($position <= 0) {
+            return true;
+        }
+
+        $sql = $this->wpdb->prepare(
+            "SELECT COUNT(*) FROM {$this->table_name}
+             WHERE thread_id = %s AND thread_position < %d AND status != 'published'",
+            $thread_id,
+            $position
+        );
+
+        return (int) $this->wpdb->get_var($sql) === 0;
+    }
+
+    /**
      * Prepara WHERE com filtros específicos
      *
      * @param array $args

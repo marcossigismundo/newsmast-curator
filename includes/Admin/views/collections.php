@@ -472,14 +472,19 @@ NC.openScheduleCollectionModal = function(id, itemsCount) {
         return;
     }
 
-    if (!jQuery('#nc-schedule-collection-modal').length) {
+    // Remove previous modal to rebuild with fresh accounts
+    jQuery('#nc-schedule-collection-modal').remove();
+
+    NC._loadAccountsForSelector(function(accounts) {
         var now = new Date();
         now.setMinutes(now.getMinutes() + 30);
         var defaultDate = now.toISOString().slice(0, 16);
 
+        var accountsHtml = NC._buildAccountSelector(accounts, 'nc-sched-coll', false);
+
         var html =
         '<div id="nc-schedule-collection-modal" class="nc-modal-overlay">' +
-            '<div class="nc-modal" style="max-width:500px;">' +
+            '<div class="nc-modal" style="max-width:540px;">' +
                 '<div class="nc-modal-header">' +
                     '<h3 class="nc-modal-title"><span class="dashicons dashicons-calendar-alt" style="color:var(--nc-accent);"></span> ' +
                         NC.__('schedule_collection', 'Agendar Coleção') + '</h3>' +
@@ -488,6 +493,26 @@ NC.openScheduleCollectionModal = function(id, itemsCount) {
                 '<div class="nc-modal-body">' +
                     '<div class="nc-notice nc-notice-info" style="margin-bottom:20px;"><span class="dashicons dashicons-info"></span>' +
                         '<span id="nc-schedule-coll-info"></span></div>' +
+
+                    // Thread toggle
+                    '<div class="nc-form-group">' +
+                        '<label class="nc-form-label" style="display:flex;align-items:center;gap:10px;cursor:pointer;">' +
+                            '<input type="checkbox" id="nc-schedule-coll-thread" style="width:18px;height:18px;accent-color:var(--nc-accent);">' +
+                            '<span class="dashicons dashicons-admin-comments" style="color:var(--nc-accent);"></span>' +
+                            ' ' + NC.__('publish_as_thread', 'Publicar como thread') +
+                        '</label>' +
+                        '<small class="nc-form-help" style="margin-left:28px;">' +
+                            NC.__('thread_help', 'Os itens serão publicados como uma sequência de respostas (thread) no Mastodon. Ideal para contar uma história ou exibir uma coleção conectada.') +
+                        '</small>' +
+                        '<div id="nc-thread-info" style="display:none;margin-top:8px;margin-left:28px;padding:10px;background:var(--nc-secondary);border-radius:8px;font-size:12px;color:var(--nc-text);">' +
+                            '<span class="dashicons dashicons-info" style="font-size:14px;width:14px;height:14px;margin-right:4px;color:var(--nc-accent);"></span>' +
+                            NC.__('thread_info', 'No modo thread, cada item é publicado como resposta ao anterior, criando uma conversa encadeada. Requer uma única conta Mastodon.') +
+                        '</div>' +
+                    '</div>' +
+
+                    // Account selector
+                    accountsHtml +
+
                     '<div class="nc-form-group">' +
                         '<label class="nc-form-label">' + NC.__('first_publication', 'Primeira publicação') + '</label>' +
                         '<input type="datetime-local" id="nc-schedule-coll-date" class="nc-form-control" value="' + defaultDate + '">' +
@@ -496,6 +521,10 @@ NC.openScheduleCollectionModal = function(id, itemsCount) {
                     '<div class="nc-form-group">' +
                         '<label class="nc-form-label">' + NC.__('interval_between', 'Intervalo entre posts') + '</label>' +
                         '<select id="nc-schedule-coll-interval" class="nc-form-control">' +
+                            '<option value="1">' + NC.__('every_1min', 'A cada 1 minuto (thread rápida)') + '</option>' +
+                            '<option value="2">' + NC.__('every_2min', 'A cada 2 minutos') + '</option>' +
+                            '<option value="5">' + NC.__('every_5min', 'A cada 5 minutos') + '</option>' +
+                            '<option value="15">' + NC.__('every_15min', 'A cada 15 minutos') + '</option>' +
                             '<option value="30">' + NC.__('every_30min', 'A cada 30 minutos') + '</option>' +
                             '<option value="60" selected>' + NC.__('every_1h', 'A cada 1 hora') + '</option>' +
                             '<option value="120">' + NC.__('every_2h', 'A cada 2 horas') + '</option>' +
@@ -509,7 +538,7 @@ NC.openScheduleCollectionModal = function(id, itemsCount) {
                 '<div class="nc-modal-footer">' +
                     '<button class="nc-button nc-button-secondary" onclick="NC.closeModal(\'nc-schedule-collection-modal\')">' +
                         NC.__('cancel', 'Cancelar') + '</button>' +
-                    '<button class="nc-button nc-button-primary" onclick="NC.submitScheduleCollection()">' +
+                    '<button class="nc-button nc-button-primary" id="nc-schedule-coll-submit" onclick="NC.submitScheduleCollection()">' +
                         '<span class="dashicons dashicons-calendar-alt"></span> ' + NC.__('schedule_all', 'Agendar Todos') + '</button>' +
                 '</div>' +
             '</div>' +
@@ -519,37 +548,56 @@ NC.openScheduleCollectionModal = function(id, itemsCount) {
         jQuery('#nc-schedule-coll-date, #nc-schedule-coll-interval').on('change', function() {
             NC.updateScheduleCollectionTimeline();
         });
-    }
 
-    NC._scheduleCollectionId = id;
-    NC._scheduleCollectionItemsCount = itemsCount;
-    jQuery('#nc-schedule-coll-info').html(
-        '<strong>' + itemsCount + '</strong> ' + NC.__('items_will_be_scheduled', 'itens selecionados serão agendados automaticamente com o template configurado.')
-    );
+        // Thread toggle behavior
+        jQuery('#nc-schedule-coll-thread').on('change', function() {
+            var isThread = jQuery(this).is(':checked');
+            jQuery('#nc-thread-info').toggle(isThread);
 
-    var now = new Date();
-    now.setMinutes(now.getMinutes() + 30);
-    jQuery('#nc-schedule-coll-date').val(now.toISOString().slice(0, 16));
-    jQuery('#nc-schedule-coll-interval').val('60');
+            if (isThread) {
+                // Default to 2min interval for threads
+                jQuery('#nc-schedule-coll-interval').val('2');
+                // Update button text
+                jQuery('#nc-schedule-coll-submit').html(
+                    '<span class="dashicons dashicons-admin-comments"></span> ' +
+                    NC.__('schedule_as_thread', 'Agendar como Thread')
+                );
+            } else {
+                jQuery('#nc-schedule-coll-interval').val('60');
+                jQuery('#nc-schedule-coll-submit').html(
+                    '<span class="dashicons dashicons-calendar-alt"></span> ' +
+                    NC.__('schedule_all', 'Agendar Todos')
+                );
+            }
+            NC.updateScheduleCollectionTimeline();
+        });
 
-    // Set min attribute to prevent retroactive scheduling
-    var minNowColl = new Date();
-    jQuery('#nc-schedule-coll-date').attr('min',
-        minNowColl.getFullYear() + '-' +
-        String(minNowColl.getMonth() + 1).padStart(2, '0') + '-' +
-        String(minNowColl.getDate()).padStart(2, '0') + 'T' +
-        String(minNowColl.getHours()).padStart(2, '0') + ':' +
-        String(minNowColl.getMinutes()).padStart(2, '0')
-    );
+        NC._scheduleCollectionId = id;
+        NC._scheduleCollectionItemsCount = itemsCount;
+        jQuery('#nc-schedule-coll-info').html(
+            '<strong>' + itemsCount + '</strong> ' + NC.__('items_will_be_scheduled', 'itens serão agendados para publicação.')
+        );
 
-    NC.updateScheduleCollectionTimeline();
-    NC.openModal('nc-schedule-collection-modal');
+        // Set min attribute to prevent retroactive scheduling
+        var minNowColl = new Date();
+        jQuery('#nc-schedule-coll-date').attr('min',
+            minNowColl.getFullYear() + '-' +
+            String(minNowColl.getMonth() + 1).padStart(2, '0') + '-' +
+            String(minNowColl.getDate()).padStart(2, '0') + 'T' +
+            String(minNowColl.getHours()).padStart(2, '0') + ':' +
+            String(minNowColl.getMinutes()).padStart(2, '0')
+        );
+
+        NC.updateScheduleCollectionTimeline();
+        NC.openModal('nc-schedule-collection-modal');
+    });
 };
 
 NC.updateScheduleCollectionTimeline = function() {
     var startDate = jQuery('#nc-schedule-coll-date').val();
     var interval = parseInt(jQuery('#nc-schedule-coll-interval').val()) || 60;
     var count = NC._scheduleCollectionItemsCount || 0;
+    var isThread = jQuery('#nc-schedule-coll-thread').is(':checked');
 
     if (!startDate || count === 0) {
         jQuery('#nc-schedule-coll-timeline').html('');
@@ -558,22 +606,53 @@ NC.updateScheduleCollectionTimeline = function() {
 
     var start = new Date(startDate);
     var html = '<div style="background:var(--nc-bg);border-radius:8px;padding:12px;font-size:13px;">';
-    html += '<strong>' + NC.__('expected_timeline', 'Cronograma previsto') + ':</strong><br>';
+
+    if (isThread) {
+        html += '<strong><span class="dashicons dashicons-admin-comments" style="font-size:14px;width:14px;height:14px;color:var(--nc-accent);"></span> ' +
+            NC.__('thread_timeline', 'Thread prevista') + ':</strong><br>';
+    } else {
+        html += '<strong>' + NC.__('expected_timeline', 'Cronograma previsto') + ':</strong><br>';
+    }
+
     var max = Math.min(count, 5);
     for (var i = 0; i < max; i++) {
         var d = new Date(start.getTime() + (i * interval * 60000));
-        html += '<div style="margin-top:6px;display:flex;align-items:center;gap:8px;">';
-        html += '<span class="nc-collection-item-order" style="width:20px;height:20px;font-size:10px;">' + (i + 1) + '</span>';
+        html += '<div style="margin-top:6px;display:flex;align-items:center;gap:8px;' +
+            (isThread && i > 0 ? 'margin-left:16px;border-left:2px solid var(--nc-accent);padding-left:10px;' : '') + '">';
+
+        if (isThread) {
+            if (i === 0) {
+                html += '<span class="dashicons dashicons-admin-post" style="font-size:14px;width:14px;height:14px;color:var(--nc-accent);"></span>';
+            } else {
+                html += '<span class="dashicons dashicons-format-status" style="font-size:12px;width:12px;height:12px;color:var(--nc-text-light);"></span>';
+            }
+        } else {
+            html += '<span class="nc-collection-item-order" style="width:20px;height:20px;font-size:10px;">' + (i + 1) + '</span>';
+        }
+
         html += '<span>' + d.toLocaleString('pt-BR') + '</span>';
+        if (isThread && i === 0) {
+            html += ' <small style="color:var(--nc-accent);">(' + NC.__('thread_start', 'início da thread') + ')</small>';
+        }
         html += '</div>';
     }
     if (count > 5) {
-        html += '<div style="margin-top:8px;color:var(--nc-text-light);">... +' + (count - 5) + ' ' + NC.__('items_label', 'itens') + '</div>';
+        var extraStyle = isThread ? 'margin-left:28px;' : '';
+        html += '<div style="margin-top:8px;color:var(--nc-text-light);' + extraStyle + '">... +' + (count - 5) + ' ' +
+            (isThread ? NC.__('replies_label', 'respostas') : NC.__('items_label', 'itens')) + '</div>';
     }
     var last = new Date(start.getTime() + ((count - 1) * interval * 60000));
     html += '<div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--nc-border);font-size:12px;color:var(--nc-text-light);">' +
         NC.__('from', 'De') + ' ' + start.toLocaleString('pt-BR') + ' ' + NC.__('until', 'até') + ' ' + last.toLocaleString('pt-BR') +
         '</div>';
+
+    if (isThread) {
+        html += '<div style="margin-top:8px;font-size:11px;color:var(--nc-text-light);">' +
+            '<span class="dashicons dashicons-info" style="font-size:12px;width:12px;height:12px;"></span> ' +
+            NC.__('thread_note', 'Cada post será uma resposta ao anterior, formando uma conversa encadeada visível no Mastodon.') +
+            '</div>';
+    }
+
     html += '</div>';
     jQuery('#nc-schedule-coll-timeline').html(html);
 };
@@ -581,6 +660,7 @@ NC.updateScheduleCollectionTimeline = function() {
 NC.submitScheduleCollection = function() {
     var startDate = jQuery('#nc-schedule-coll-date').val();
     var interval = parseInt(jQuery('#nc-schedule-coll-interval').val()) || 60;
+    var isThread = jQuery('#nc-schedule-coll-thread').is(':checked');
 
     if (!startDate) {
         NC.showNotice('warning', NC.__('configure_first_date', 'Configure a data da primeira publicação'));
@@ -594,17 +674,32 @@ NC.submitScheduleCollection = function() {
         return;
     }
 
-    NC.showNotice('info', NC.__('scheduling', 'Agendando') + ' ' + NC._scheduleCollectionItemsCount + ' ' + NC.__('publications', 'publicações...'));
+    // Get selected Mastodon account
+    var accountId = jQuery('#nc-sched-coll-account-select').val();
+    var accountIds = accountId ? [parseInt(accountId)] : [];
+
+    var modeLabel = isThread
+        ? NC.__('scheduling_thread', 'Agendando thread com')
+        : NC.__('scheduling', 'Agendando');
+    NC.showNotice('info', modeLabel + ' ' + NC._scheduleCollectionItemsCount + ' ' + NC.__('publications', 'publicações...'));
 
     wp.apiFetch({
         path: ncData.apiUrl + '/collections/' + NC._scheduleCollectionId + '/schedule',
         method: 'POST',
         data: {
             scheduled_for: startDate.replace('T', ' ') + ':00',
-            interval_minutes: interval
+            interval_minutes: interval,
+            as_thread: isThread,
+            mastodon_account_ids: accountIds
         }
     }).then(function(response) {
-        NC.showNotice('success', (response.publications_created || 0) + ' ' + NC.__('publications_scheduled', 'publicações agendadas com sucesso!'));
+        var msg = (response.publications_created || 0) + ' ';
+        if (response.as_thread) {
+            msg += NC.__('thread_scheduled', 'publicações agendadas como thread!');
+        } else {
+            msg += NC.__('publications_scheduled', 'publicações agendadas com sucesso!');
+        }
+        NC.showNotice('success', msg);
         NC.closeModal('nc-schedule-collection-modal');
         NC.loadCollections(NC._collectionsFilter);
         NC.loadCollectionStats();
