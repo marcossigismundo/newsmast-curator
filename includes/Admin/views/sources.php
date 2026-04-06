@@ -511,9 +511,9 @@ NC.loadSources = function() {
                     <button class="nc-button nc-button-secondary" onclick="NC.editSource(${s.id})" title="Editar esta fonte">
                         <span class="dashicons dashicons-edit"></span>
                     </button>
-                    <button class="nc-button nc-button-primary" onclick="NC.collectSource(${s.id})" title="Coletar conteúdo agora">
-                        <span class="dashicons dashicons-update"></span>
-                        Coletar
+                    <button class="nc-button nc-button-primary" onclick="NC.collectSource(${s.id})" title="${s.connector_type === 'tainacan' ? 'Explorar acervo e selecionar itens' : 'Coletar conteúdo agora'}">
+                        <span class="dashicons ${s.connector_type === 'tainacan' ? 'dashicons-search' : 'dashicons-update'}"></span>
+                        ${s.connector_type === 'tainacan' ? 'Explorar' : 'Coletar'}
                     </button>
                     <button class="nc-button nc-button-danger" onclick="NC.deleteSource(${s.id})" title="Remover esta fonte">
                         <span class="dashicons dashicons-trash"></span>
@@ -618,18 +618,23 @@ NC.editSource = function(id) {
 };
 
 NC.collectSource = function(id) {
-    if (!confirm('Iniciar coleta desta fonte agora?')) return;
-
-    NC.showNotice('info', 'Coletando...');
-
-    wp.apiFetch({
-        path: `${ncData.apiUrl}/sources/${id}/collect`,
-        method: 'POST'
-    }).then(result => {
-        NC.showNotice('success', `${result.items_collected} itens coletados!`);
-        NC.loadSources();
-    }).catch(error => {
-        NC.showNotice('error', 'Erro na coleta: ' + (error.message || 'Erro desconhecido'));
+    // Para fontes Tainacan, abre o explorador para seleção manual
+    wp.apiFetch({path: ncData.apiUrl + '/sources/' + id}).then(function(source) {
+        if (source.connector_type === 'tainacan') {
+            NC.openTainacanExplorer(source);
+        } else {
+            if (!confirm('Iniciar coleta desta fonte agora?')) return;
+            NC.showNotice('info', 'Coletando...');
+            wp.apiFetch({
+                path: ncData.apiUrl + '/sources/' + id + '/collect',
+                method: 'POST'
+            }).then(function(result) {
+                NC.showNotice('success', (result.items_collected || 0) + ' itens coletados!');
+                NC.loadSources();
+            }).catch(function(error) {
+                NC.showNotice('error', 'Erro na coleta: ' + (error.message || 'Erro desconhecido'));
+            });
+        }
     });
 };
 
@@ -650,6 +655,252 @@ NC.deleteSource = function(id) {
 /**
  * Testa busca no acervo Tainacan via backend (evita bloqueio CORS)
  */
+// ========== Tainacan Explorer Modal ==========
+NC._exploreSelectedIds = {};
+NC._explorePage = 1;
+NC._exploreSourceId = null;
+
+NC.openTainacanExplorer = function(source) {
+    NC._exploreSourceId = source.id;
+    NC._exploreSelectedIds = {};
+    NC._explorePage = 1;
+
+    jQuery('#nc-tainacan-explorer-modal').remove();
+
+    var searchTerms = (source.config && source.config.search_terms) || '';
+    var html =
+    '<div id="nc-tainacan-explorer-modal" class="nc-modal-overlay">' +
+        '<div class="nc-modal" style="max-width:900px;max-height:90vh;display:flex;flex-direction:column;">' +
+            '<div class="nc-modal-header">' +
+                '<h3 class="nc-modal-title"><span class="dashicons dashicons-database" style="color:var(--nc-accent);"></span> ' +
+                    'Explorar: ' + NC.escapeHtml(source.name) + '</h3>' +
+                '<button class="nc-modal-close" onclick="NC.closeModal(\'nc-tainacan-explorer-modal\')">&times;</button>' +
+            '</div>' +
+            '<div style="padding:12px 20px;border-bottom:1px solid var(--nc-border);display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;">' +
+                '<div class="nc-form-group" style="flex:1;min-width:200px;margin:0;">' +
+                    '<label class="nc-form-label">Buscar no acervo</label>' +
+                    '<input type="text" id="nc-explore-search" class="nc-form-control" placeholder="Palavras-chave..." value="' + NC.escapeHtml(searchTerms) + '">' +
+                '</div>' +
+                '<div class="nc-form-group" style="flex:0 0 auto;margin:0;">' +
+                    '<label class="nc-form-label">Ordenar</label>' +
+                    '<select id="nc-explore-orderby" class="nc-form-control">' +
+                        '<option value="date">Mais recentes</option>' +
+                        '<option value="title">Título</option>' +
+                    '</select>' +
+                '</div>' +
+                '<button class="nc-button nc-button-primary" onclick="NC.exploreBrowse(1)">' +
+                    '<span class="dashicons dashicons-search"></span> Buscar' +
+                '</button>' +
+            '</div>' +
+            '<div id="nc-explore-facets-row" style="display:none;padding:8px 20px;border-bottom:1px solid var(--nc-border);"></div>' +
+            '<div id="nc-explore-status" style="padding:8px 20px;display:none;background:var(--nc-secondary);font-size:13px;display:flex;justify-content:space-between;align-items:center;">' +
+                '<span><span class="dashicons dashicons-database" style="font-size:14px;width:14px;height:14px;vertical-align:middle;"></span> <span id="nc-explore-total">0</span> itens no acervo</span>' +
+                '<span id="nc-explore-selected-info" style="display:none;">' +
+                    '<strong id="nc-explore-selected-count">0</strong> selecionados' +
+                '</span>' +
+            '</div>' +
+            '<div id="nc-explore-results" style="flex:1;overflow-y:auto;padding:0;">' +
+                '<div style="padding:40px;text-align:center;color:var(--nc-text-light);">' +
+                    '<span class="dashicons dashicons-search" style="font-size:48px;width:48px;height:48px;color:var(--nc-border);"></span>' +
+                    '<p>Clique em <strong>Buscar</strong> para explorar o acervo Tainacan.</p>' +
+                    '<p style="font-size:12px;">Selecione os itens desejados e importe para a curadoria.</p>' +
+                '</div>' +
+            '</div>' +
+            '<div id="nc-explore-pagination" style="display:none;padding:10px 20px;border-top:1px solid var(--nc-border);text-align:center;"></div>' +
+            '<div class="nc-modal-footer">' +
+                '<button class="nc-button nc-button-secondary" onclick="NC.closeModal(\'nc-tainacan-explorer-modal\')">Fechar</button>' +
+                '<button class="nc-button nc-button-outline" onclick="NC.exploreCollectAll()" title="Coleta tradicional: importa todos os itens da busca configurada">' +
+                    '<span class="dashicons dashicons-update"></span> Coletar tudo (modo antigo)' +
+                '</button>' +
+                '<button class="nc-button nc-button-success" id="nc-explore-import-btn" onclick="NC.exploreImportSelected()" disabled>' +
+                    '<span class="dashicons dashicons-download"></span> Importar selecionados (<span id="nc-explore-import-count">0</span>)' +
+                '</button>' +
+            '</div>' +
+        '</div>' +
+    '</div>';
+
+    jQuery('body').append(html);
+
+    // Load facets for this source
+    wp.apiFetch({path: ncData.apiUrl + '/sources/' + source.id + '/tainacan-facets'}).then(function(data) {
+        var facets = data.facets || [];
+        if (facets.length === 0) return;
+        var fhtml = '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">';
+        fhtml += '<span style="font-size:12px;font-weight:600;color:var(--nc-text-light);">Filtros:</span>';
+        facets.forEach(function(f) {
+            if (!f.values || f.values.length === 0) return;
+            fhtml += '<select class="nc-form-control nc-explore-facet" data-slug="' + NC.escapeHtml(f.slug) + '" style="min-width:120px;font-size:12px;padding:4px 8px;">';
+            fhtml += '<option value="">' + NC.escapeHtml(f.name) + '</option>';
+            f.values.forEach(function(v) {
+                if (v) fhtml += '<option value="' + NC.escapeHtml(v) + '">' + NC.escapeHtml(v.length > 30 ? v.substring(0, 30) + '...' : v) + '</option>';
+            });
+            fhtml += '</select>';
+        });
+        fhtml += '</div>';
+        jQuery('#nc-explore-facets-row').html(fhtml).show();
+    });
+
+    jQuery('#nc-explore-search').on('keypress', function(e) {
+        if (e.key === 'Enter') { e.preventDefault(); NC.exploreBrowse(1); }
+    });
+
+    NC.openModal('nc-tainacan-explorer-modal');
+
+    // Auto-search if there are pre-configured search terms
+    if (searchTerms) {
+        NC.exploreBrowse(1);
+    }
+};
+
+NC.exploreBrowse = function(page) {
+    NC._explorePage = page || 1;
+    jQuery('#nc-explore-results').html('<div style="padding:40px;text-align:center;"><div class="nc-spinner"></div> Buscando no acervo...</div>');
+
+    var data = {
+        source_id: NC._exploreSourceId,
+        page: NC._explorePage,
+        per_page: 24,
+        search: jQuery('#nc-explore-search').val() || '',
+        orderby: jQuery('#nc-explore-orderby').val() || 'date',
+        order: 'DESC'
+    };
+
+    wp.apiFetch({
+        path: ncData.apiUrl + '/items/browse-tainacan',
+        method: 'POST',
+        data: data
+    }).then(function(res) {
+        jQuery('#nc-explore-status').show();
+        jQuery('#nc-explore-total').text(res.total || 0);
+
+        if (!res.items || res.items.length === 0) {
+            jQuery('#nc-explore-results').html(
+                '<div style="padding:40px;text-align:center;color:var(--nc-text-light);">' +
+                '<span class="dashicons dashicons-info" style="font-size:36px;width:36px;height:36px;color:var(--nc-border);"></span>' +
+                '<p>Nenhum item encontrado para esta busca.</p></div>'
+            );
+            jQuery('#nc-explore-pagination').hide();
+            return;
+        }
+
+        var html = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;padding:16px;">';
+        res.items.forEach(function(item) {
+            var isSelected = !!NC._exploreSelectedIds[item.tainacan_id];
+            var imported = item.already_imported;
+            html += '<div class="nc-explore-tile' + (isSelected ? ' nc-explore-tile-selected' : '') + (imported ? ' nc-explore-tile-imported' : '') + '" data-tainacan-id="' + item.tainacan_id + '" onclick="NC.exploreToggleItem(' + item.tainacan_id + ')">';
+
+            if (item.image_url) {
+                html += '<div class="nc-explore-tile-img"><img src="' + NC.escapeHtml(item.image_url) + '" alt="" loading="lazy"></div>';
+            } else {
+                html += '<div class="nc-explore-tile-img nc-explore-tile-noimg"><span class="dashicons dashicons-format-image"></span></div>';
+            }
+
+            html += '<div class="nc-explore-tile-info">';
+            html += '<h4 class="nc-explore-tile-title">' + NC.escapeHtml(item.title.length > 50 ? item.title.substring(0, 50) + '...' : item.title) + '</h4>';
+            if (item.author) html += '<div class="nc-explore-tile-meta">' + NC.escapeHtml(item.author) + '</div>';
+
+            if (imported) {
+                html += '<span class="nc-badge nc-badge-info" style="font-size:9px;">Já importado</span>';
+            } else if (isSelected) {
+                html += '<span class="nc-badge nc-badge-success" style="font-size:9px;">✓ Selecionado</span>';
+            }
+
+            html += '</div></div>';
+        });
+        html += '</div>';
+        jQuery('#nc-explore-results').html(html);
+
+        // Pagination
+        if (res.total_pages > 1) {
+            var phtml = '<div style="display:flex;gap:8px;justify-content:center;align-items:center;">';
+            if (NC._explorePage > 1) {
+                phtml += '<button class="nc-button nc-button-secondary nc-btn-sm" onclick="NC.exploreBrowse(' + (NC._explorePage - 1) + ')">&laquo; Anterior</button>';
+            }
+            phtml += '<span style="color:var(--nc-text-light);font-size:13px;">Página ' + NC._explorePage + ' de ' + res.total_pages + '</span>';
+            if (NC._explorePage < res.total_pages) {
+                phtml += '<button class="nc-button nc-button-secondary nc-btn-sm" onclick="NC.exploreBrowse(' + (NC._explorePage + 1) + ')">Próxima &raquo;</button>';
+            }
+            phtml += '</div>';
+            jQuery('#nc-explore-pagination').html(phtml).show();
+        } else {
+            jQuery('#nc-explore-pagination').hide();
+        }
+
+        NC.exploreUpdateSelection();
+    }).catch(function(e) {
+        jQuery('#nc-explore-results').html(
+            '<div class="nc-notice nc-notice-error" style="margin:16px;"><span class="dashicons dashicons-dismiss"></span> Erro: ' + (e.message || 'Falha na busca') + '</div>'
+        );
+    });
+};
+
+NC.exploreToggleItem = function(tainacanId) {
+    var $tile = jQuery('[data-tainacan-id="' + tainacanId + '"]');
+    if ($tile.hasClass('nc-explore-tile-imported')) return;
+
+    if (NC._exploreSelectedIds[tainacanId]) {
+        delete NC._exploreSelectedIds[tainacanId];
+        $tile.removeClass('nc-explore-tile-selected');
+    } else {
+        NC._exploreSelectedIds[tainacanId] = true;
+        $tile.addClass('nc-explore-tile-selected');
+    }
+    NC.exploreUpdateSelection();
+};
+
+NC.exploreUpdateSelection = function() {
+    var count = Object.keys(NC._exploreSelectedIds).length;
+    jQuery('#nc-explore-import-count').text(count);
+    jQuery('#nc-explore-import-btn').prop('disabled', count === 0);
+    if (count > 0) {
+        jQuery('#nc-explore-selected-info').show();
+        jQuery('#nc-explore-selected-count').text(count);
+    } else {
+        jQuery('#nc-explore-selected-info').hide();
+    }
+};
+
+NC.exploreImportSelected = function() {
+    var ids = Object.keys(NC._exploreSelectedIds).map(Number);
+    if (ids.length === 0) return;
+
+    NC.showNotice('info', 'Importando ' + ids.length + ' itens selecionados...');
+    jQuery('#nc-explore-import-btn').prop('disabled', true).html('<span class="dashicons dashicons-update nc-spin"></span> Importando...');
+
+    wp.apiFetch({
+        path: ncData.apiUrl + '/items/import-selected',
+        method: 'POST',
+        data: { source_id: NC._exploreSourceId, tainacan_ids: ids }
+    }).then(function(res) {
+        NC.showNotice('success', res.imported + ' itens importados para curadoria! (' + res.skipped + ' já existiam)');
+        NC._exploreSelectedIds = {};
+        NC.exploreUpdateSelection();
+        jQuery('#nc-explore-import-btn').html('<span class="dashicons dashicons-download"></span> Importar selecionados (<span id="nc-explore-import-count">0</span>)');
+        // Refresh view to show imported badges
+        NC.exploreBrowse(NC._explorePage);
+        NC.loadSources();
+    }).catch(function(e) {
+        NC.showNotice('error', 'Erro na importação: ' + (e.message || ''));
+        jQuery('#nc-explore-import-btn').prop('disabled', false).html('<span class="dashicons dashicons-download"></span> Importar selecionados (<span id="nc-explore-import-count">' + ids.length + '</span>)');
+    });
+};
+
+NC.exploreCollectAll = function() {
+    if (!confirm('Importar TODOS os itens desta fonte (modo tradicional)?\n\nIsto pode trazer muitos itens para a curadoria.')) return;
+
+    NC.showNotice('info', 'Coletando todos os itens...');
+    wp.apiFetch({
+        path: ncData.apiUrl + '/sources/' + NC._exploreSourceId + '/collect',
+        method: 'POST'
+    }).then(function(result) {
+        NC.showNotice('success', (result.items_collected || 0) + ' itens coletados!');
+        NC.closeModal('nc-tainacan-explorer-modal');
+        NC.loadSources();
+    }).catch(function(error) {
+        NC.showNotice('error', 'Erro na coleta: ' + (error.message || ''));
+    });
+};
+
 NC.testTainacanSearch = function() {
     var url = jQuery('#nc-source-url').val().replace(/\/+$/, '');
     var collectionId = jQuery('#nc-config-fields [name="config[collection_id]"]').val();
