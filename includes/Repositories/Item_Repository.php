@@ -186,6 +186,150 @@ class Item_Repository extends Base_Repository {
     }
 
     /**
+     * Estatísticas detalhadas para limpeza
+     *
+     * @return array
+     */
+    public function get_cleanup_stats() {
+        $pubs_table = $this->database->get_table_name('publications');
+
+        // Items com publicação publicada
+        $published_items = (int) $this->wpdb->get_var(
+            "SELECT COUNT(DISTINCT i.id) FROM {$this->table_name} i
+             INNER JOIN {$pubs_table} p ON p.item_id = i.id AND p.status = 'published'"
+        );
+
+        // Items não curados (nunca aprovados)
+        $uncurated = (int) $this->wpdb->get_var(
+            "SELECT COUNT(*) FROM {$this->table_name} WHERE curated = 0"
+        );
+
+        // Items curados mas sem publicação
+        $curated_no_pub = (int) $this->wpdb->get_var(
+            "SELECT COUNT(*) FROM {$this->table_name} i
+             WHERE i.curated = 1
+             AND NOT EXISTS (SELECT 1 FROM {$pubs_table} p WHERE p.item_id = i.id)"
+        );
+
+        // Items com publicação agendada/processando
+        $with_pending = (int) $this->wpdb->get_var(
+            "SELECT COUNT(DISTINCT i.id) FROM {$this->table_name} i
+             INNER JOIN {$pubs_table} p ON p.item_id = i.id
+             AND p.status IN ('scheduled', 'processing')"
+        );
+
+        $total = (int) $this->wpdb->get_var("SELECT COUNT(*) FROM {$this->table_name}");
+
+        // Items coletados há mais de 30 dias e não curados
+        $old_uncurated = (int) $this->wpdb->get_var(
+            $this->wpdb->prepare(
+                "SELECT COUNT(*) FROM {$this->table_name}
+                 WHERE curated = 0 AND collected_at < %s",
+                date('Y-m-d H:i:s', current_time('timestamp') - (30 * DAY_IN_SECONDS))
+            )
+        );
+
+        return [
+            'total' => $total,
+            'published_items' => $published_items,
+            'uncurated' => $uncurated,
+            'curated_no_pub' => $curated_no_pub,
+            'with_pending' => $with_pending,
+            'old_uncurated' => $old_uncurated,
+            'safe_to_delete' => $published_items + $old_uncurated, // Items que podem ser limpos com segurança
+        ];
+    }
+
+    /**
+     * Remove itens já publicados (todas as publicações com status 'published')
+     * Retorna contagem de itens removidos
+     *
+     * @return int
+     */
+    public function delete_published_items() {
+        $pubs_table = $this->database->get_table_name('publications');
+        $collection_items_table = $this->database->get_table_name('collection_items');
+
+        // Busca IDs dos itens que foram publicados E não têm publicações pendentes
+        $ids = $this->wpdb->get_col(
+            "SELECT DISTINCT i.id FROM {$this->table_name} i
+             INNER JOIN {$pubs_table} p ON p.item_id = i.id AND p.status = 'published'
+             WHERE NOT EXISTS (
+                SELECT 1 FROM {$pubs_table} p2
+                WHERE p2.item_id = i.id AND p2.status IN ('scheduled', 'processing')
+             )"
+        );
+
+        if (empty($ids)) return 0;
+
+        $ids_str = implode(',', array_map('intval', $ids));
+
+        // Remove dos collection_items
+        $this->wpdb->query("DELETE FROM {$collection_items_table} WHERE item_id IN ({$ids_str})");
+
+        // Remove publicações associadas (já publicadas ou falhadas)
+        $this->wpdb->query("DELETE FROM {$pubs_table} WHERE item_id IN ({$ids_str})");
+
+        // Remove itens
+        $deleted = $this->wpdb->query("DELETE FROM {$this->table_name} WHERE id IN ({$ids_str})");
+
+        return (int) $deleted;
+    }
+
+    /**
+     * Remove itens não curados antigos (coletados há mais de X dias)
+     *
+     * @param int $days_old Dias mínimos de idade
+     * @return int Itens removidos
+     */
+    public function delete_old_uncurated($days_old = 30) {
+        $pubs_table = $this->database->get_table_name('publications');
+        $collection_items_table = $this->database->get_table_name('collection_items');
+
+        $threshold = date('Y-m-d H:i:s', current_time('timestamp') - ($days_old * DAY_IN_SECONDS));
+
+        $ids = $this->wpdb->get_col(
+            $this->wpdb->prepare(
+                "SELECT id FROM {$this->table_name}
+                 WHERE curated = 0 AND collected_at < %s",
+                $threshold
+            )
+        );
+
+        if (empty($ids)) return 0;
+
+        $ids_str = implode(',', array_map('intval', $ids));
+        $this->wpdb->query("DELETE FROM {$collection_items_table} WHERE item_id IN ({$ids_str})");
+        $this->wpdb->query("DELETE FROM {$pubs_table} WHERE item_id IN ({$ids_str})");
+        $deleted = $this->wpdb->query("DELETE FROM {$this->table_name} WHERE id IN ({$ids_str})");
+
+        return (int) $deleted;
+    }
+
+    /**
+     * Remove todos os itens não curados
+     *
+     * @return int Itens removidos
+     */
+    public function delete_all_uncurated() {
+        $pubs_table = $this->database->get_table_name('publications');
+        $collection_items_table = $this->database->get_table_name('collection_items');
+
+        $ids = $this->wpdb->get_col(
+            "SELECT id FROM {$this->table_name} WHERE curated = 0"
+        );
+
+        if (empty($ids)) return 0;
+
+        $ids_str = implode(',', array_map('intval', $ids));
+        $this->wpdb->query("DELETE FROM {$collection_items_table} WHERE item_id IN ({$ids_str})");
+        $this->wpdb->query("DELETE FROM {$pubs_table} WHERE item_id IN ({$ids_str})");
+        $deleted = $this->wpdb->query("DELETE FROM {$this->table_name} WHERE id IN ({$ids_str})");
+
+        return (int) $deleted;
+    }
+
+    /**
      * Prepara WHERE com filtros específicos
      *
      * @param array $args
