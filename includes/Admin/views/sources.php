@@ -659,6 +659,7 @@ NC.deleteSource = function(id) {
 NC._exploreSelectedIds = {};
 NC._explorePage = 1;
 NC._exploreSourceId = null;
+NC._exploreViewMode = 'grid';
 
 NC.openTainacanExplorer = function(source) {
     NC._exploreSourceId = source.id;
@@ -670,49 +671,58 @@ NC.openTainacanExplorer = function(source) {
     var searchTerms = (source.config && source.config.search_terms) || '';
     var html =
     '<div id="nc-tainacan-explorer-modal" class="nc-modal-overlay">' +
-        '<div class="nc-modal" style="max-width:900px;max-height:90vh;display:flex;flex-direction:column;">' +
-            '<div class="nc-modal-header">' +
-                '<h3 class="nc-modal-title"><span class="dashicons dashicons-database" style="color:var(--nc-accent);"></span> ' +
+        '<div class="nc-modal" style="max-width:95vw;width:1280px;max-height:92vh;display:flex;flex-direction:column;">' +
+            '<div class="nc-modal-header" style="padding:10px 20px;">' +
+                '<h3 class="nc-modal-title" style="font-size:15px;"><span class="dashicons dashicons-database" style="color:var(--nc-accent);"></span> ' +
                     'Explorar: ' + NC.escapeHtml(source.name) + '</h3>' +
                 '<button class="nc-modal-close" onclick="NC.closeModal(\'nc-tainacan-explorer-modal\')">&times;</button>' +
             '</div>' +
-            '<div style="padding:12px 20px;border-bottom:1px solid var(--nc-border);display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;">' +
-                '<div class="nc-form-group" style="flex:1;min-width:200px;margin:0;">' +
-                    '<label class="nc-form-label">Buscar no acervo</label>' +
-                    '<input type="text" id="nc-explore-search" class="nc-form-control" placeholder="Palavras-chave..." value="' + NC.escapeHtml(searchTerms) + '">' +
+            // Compact toolbar: search + order + view toggle + search button — all in one row
+            '<div style="padding:8px 16px;border-bottom:1px solid var(--nc-border);display:flex;gap:8px;align-items:center;flex-wrap:wrap;">' +
+                '<div style="position:relative;flex:1;min-width:180px;">' +
+                    '<span class="dashicons dashicons-search" style="position:absolute;left:8px;top:50%;transform:translateY(-50%);font-size:16px;width:16px;height:16px;color:var(--nc-text-light);"></span>' +
+                    '<input type="text" id="nc-explore-search" class="nc-form-control" placeholder="Buscar no acervo..." value="' + NC.escapeHtml(searchTerms) + '" style="padding-left:30px;font-size:13px;">' +
                 '</div>' +
-                '<div class="nc-form-group" style="flex:0 0 auto;margin:0;">' +
-                    '<label class="nc-form-label">Ordenar</label>' +
-                    '<select id="nc-explore-orderby" class="nc-form-control">' +
-                        '<option value="date">Mais recentes</option>' +
-                        '<option value="title">Título</option>' +
-                    '</select>' +
+                '<select id="nc-explore-orderby" class="nc-form-control" style="width:auto;font-size:12px;padding:6px 8px;">' +
+                    '<option value="date">Recentes</option>' +
+                    '<option value="title">Título</option>' +
+                '</select>' +
+                '<div style="display:flex;border:1px solid var(--nc-border);border-radius:6px;overflow:hidden;">' +
+                    '<button class="nc-explore-view-btn active" data-view="grid" onclick="NC.exploreSetView(\'grid\')" title="Grade" style="padding:5px 8px;border:none;background:var(--nc-accent);color:#fff;cursor:pointer;display:flex;align-items:center;">' +
+                        '<span class="dashicons dashicons-grid-view" style="font-size:16px;width:16px;height:16px;"></span>' +
+                    '</button>' +
+                    '<button class="nc-explore-view-btn" data-view="list" onclick="NC.exploreSetView(\'list\')" title="Lista" style="padding:5px 8px;border:none;background:var(--nc-white);color:var(--nc-text-light);cursor:pointer;display:flex;align-items:center;">' +
+                        '<span class="dashicons dashicons-list-view" style="font-size:16px;width:16px;height:16px;"></span>' +
+                    '</button>' +
                 '</div>' +
-                '<button class="nc-button nc-button-primary" onclick="NC.exploreBrowse(1)">' +
+                '<button class="nc-button nc-button-primary nc-btn-sm" onclick="NC.exploreBrowse(1)" style="white-space:nowrap;">' +
                     '<span class="dashicons dashicons-search"></span> Buscar' +
                 '</button>' +
             '</div>' +
-            '<div id="nc-explore-facets-row" style="display:none;padding:8px 20px;border-bottom:1px solid var(--nc-border);"></div>' +
-            '<div id="nc-explore-status" style="padding:8px 20px;display:none;background:var(--nc-secondary);font-size:13px;display:flex;justify-content:space-between;align-items:center;">' +
-                '<span><span class="dashicons dashicons-database" style="font-size:14px;width:14px;height:14px;vertical-align:middle;"></span> <span id="nc-explore-total">0</span> itens no acervo</span>' +
+            // Facets row (compact, inline)
+            '<div id="nc-explore-facets-row" style="display:none;padding:6px 16px;border-bottom:1px solid var(--nc-border);background:var(--nc-bg);"></div>' +
+            // Status bar
+            '<div id="nc-explore-status" style="display:none;padding:6px 16px;background:var(--nc-secondary);font-size:12px;display:flex;justify-content:space-between;align-items:center;">' +
+                '<span><span class="dashicons dashicons-database" style="font-size:13px;width:13px;height:13px;vertical-align:middle;"></span> <span id="nc-explore-total">0</span> itens no acervo</span>' +
                 '<span id="nc-explore-selected-info" style="display:none;">' +
                     '<strong id="nc-explore-selected-count">0</strong> selecionados' +
                 '</span>' +
             '</div>' +
+            // Results area
             '<div id="nc-explore-results" style="flex:1;overflow-y:auto;padding:0;">' +
                 '<div style="padding:40px;text-align:center;color:var(--nc-text-light);">' +
                     '<span class="dashicons dashicons-search" style="font-size:48px;width:48px;height:48px;color:var(--nc-border);"></span>' +
-                    '<p>Clique em <strong>Buscar</strong> para explorar o acervo Tainacan.</p>' +
+                    '<p>Clique em <strong>Buscar</strong> para explorar o acervo.</p>' +
                     '<p style="font-size:12px;">Selecione os itens desejados e importe para a curadoria.</p>' +
                 '</div>' +
             '</div>' +
-            '<div id="nc-explore-pagination" style="display:none;padding:10px 20px;border-top:1px solid var(--nc-border);text-align:center;"></div>' +
-            '<div class="nc-modal-footer">' +
-                '<button class="nc-button nc-button-secondary" onclick="NC.closeModal(\'nc-tainacan-explorer-modal\')">Fechar</button>' +
-                '<button class="nc-button nc-button-outline" onclick="NC.exploreCollectAll()" title="Coleta tradicional: importa todos os itens da busca configurada">' +
-                    '<span class="dashicons dashicons-update"></span> Coletar tudo (modo antigo)' +
+            '<div id="nc-explore-pagination" style="display:none;padding:8px 16px;border-top:1px solid var(--nc-border);text-align:center;"></div>' +
+            '<div class="nc-modal-footer" style="padding:8px 16px;">' +
+                '<button class="nc-button nc-button-secondary nc-btn-sm" onclick="NC.closeModal(\'nc-tainacan-explorer-modal\')">Fechar</button>' +
+                '<button class="nc-button nc-button-outline nc-btn-sm" onclick="NC.exploreCollectAll()" title="Coleta tradicional: importa todos os itens da busca configurada">' +
+                    '<span class="dashicons dashicons-update"></span> Coletar tudo' +
                 '</button>' +
-                '<button class="nc-button nc-button-success" id="nc-explore-import-btn" onclick="NC.exploreImportSelected()" disabled>' +
+                '<button class="nc-button nc-button-success nc-btn-sm" id="nc-explore-import-btn" onclick="NC.exploreImportSelected()" disabled>' +
                     '<span class="dashicons dashicons-download"></span> Importar selecionados (<span id="nc-explore-import-count">0</span>)' +
                 '</button>' +
             '</div>' +
@@ -721,18 +731,18 @@ NC.openTainacanExplorer = function(source) {
 
     jQuery('body').append(html);
 
-    // Load facets for this source
+    // Load facets for this source (compact inline)
     wp.apiFetch({path: ncData.apiUrl + '/sources/' + source.id + '/tainacan-facets'}).then(function(data) {
         var facets = data.facets || [];
         if (facets.length === 0) return;
-        var fhtml = '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">';
-        fhtml += '<span style="font-size:12px;font-weight:600;color:var(--nc-text-light);">Filtros:</span>';
+        var fhtml = '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">';
+        fhtml += '<span style="font-size:11px;font-weight:600;color:var(--nc-text-light);">Filtros:</span>';
         facets.forEach(function(f) {
             if (!f.values || f.values.length === 0) return;
-            fhtml += '<select class="nc-form-control nc-explore-facet" data-slug="' + NC.escapeHtml(f.slug) + '" style="min-width:120px;font-size:12px;padding:4px 8px;">';
+            fhtml += '<select class="nc-form-control nc-explore-facet" data-slug="' + NC.escapeHtml(f.slug) + '" style="min-width:100px;max-width:160px;font-size:11px;padding:3px 6px;">';
             fhtml += '<option value="">' + NC.escapeHtml(f.name) + '</option>';
             f.values.forEach(function(v) {
-                if (v) fhtml += '<option value="' + NC.escapeHtml(v) + '">' + NC.escapeHtml(v.length > 30 ? v.substring(0, 30) + '...' : v) + '</option>';
+                if (v) fhtml += '<option value="' + NC.escapeHtml(v) + '">' + NC.escapeHtml(v.length > 25 ? v.substring(0, 25) + '...' : v) + '</option>';
             });
             fhtml += '</select>';
         });
@@ -746,11 +756,20 @@ NC.openTainacanExplorer = function(source) {
 
     NC.openModal('nc-tainacan-explorer-modal');
 
-    // Auto-search if there are pre-configured search terms
     if (searchTerms) {
         NC.exploreBrowse(1);
     }
 };
+
+NC.exploreSetView = function(mode) {
+    NC._exploreViewMode = mode;
+    jQuery('.nc-explore-view-btn').css({background: 'var(--nc-white)', color: 'var(--nc-text-light)'});
+    jQuery('.nc-explore-view-btn[data-view="' + mode + '"]').css({background: 'var(--nc-accent)', color: '#fff'});
+    // Re-render current results
+    NC.exploreRenderItems(NC._exploreLastItems || []);
+};
+
+NC._exploreLastItems = [];
 
 NC.exploreBrowse = function(page) {
     NC._explorePage = page || 1;
@@ -759,7 +778,7 @@ NC.exploreBrowse = function(page) {
     var data = {
         source_id: NC._exploreSourceId,
         page: NC._explorePage,
-        per_page: 24,
+        per_page: 30,
         search: jQuery('#nc-explore-search').val() || '',
         orderby: jQuery('#nc-explore-orderby').val() || 'date',
         order: 'DESC'
@@ -774,6 +793,7 @@ NC.exploreBrowse = function(page) {
         jQuery('#nc-explore-total').text(res.total || 0);
 
         if (!res.items || res.items.length === 0) {
+            NC._exploreLastItems = [];
             jQuery('#nc-explore-results').html(
                 '<div style="padding:40px;text-align:center;color:var(--nc-text-light);">' +
                 '<span class="dashicons dashicons-info" style="font-size:36px;width:36px;height:36px;color:var(--nc-border);"></span>' +
@@ -783,32 +803,8 @@ NC.exploreBrowse = function(page) {
             return;
         }
 
-        var html = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;padding:16px;">';
-        res.items.forEach(function(item) {
-            var isSelected = !!NC._exploreSelectedIds[item.tainacan_id];
-            var imported = item.already_imported;
-            html += '<div class="nc-explore-tile' + (isSelected ? ' nc-explore-tile-selected' : '') + (imported ? ' nc-explore-tile-imported' : '') + '" data-tainacan-id="' + item.tainacan_id + '" onclick="NC.exploreToggleItem(' + item.tainacan_id + ')">';
-
-            if (item.image_url) {
-                html += '<div class="nc-explore-tile-img"><img src="' + NC.escapeHtml(item.image_url) + '" alt="" loading="lazy"></div>';
-            } else {
-                html += '<div class="nc-explore-tile-img nc-explore-tile-noimg"><span class="dashicons dashicons-format-image"></span></div>';
-            }
-
-            html += '<div class="nc-explore-tile-info">';
-            html += '<h4 class="nc-explore-tile-title">' + NC.escapeHtml(item.title.length > 50 ? item.title.substring(0, 50) + '...' : item.title) + '</h4>';
-            if (item.author) html += '<div class="nc-explore-tile-meta">' + NC.escapeHtml(item.author) + '</div>';
-
-            if (imported) {
-                html += '<span class="nc-badge nc-badge-info" style="font-size:9px;">Já importado</span>';
-            } else if (isSelected) {
-                html += '<span class="nc-badge nc-badge-success" style="font-size:9px;">✓ Selecionado</span>';
-            }
-
-            html += '</div></div>';
-        });
-        html += '</div>';
-        jQuery('#nc-explore-results').html(html);
+        NC._exploreLastItems = res.items;
+        NC.exploreRenderItems(res.items);
 
         // Pagination
         if (res.total_pages > 1) {
@@ -816,7 +812,7 @@ NC.exploreBrowse = function(page) {
             if (NC._explorePage > 1) {
                 phtml += '<button class="nc-button nc-button-secondary nc-btn-sm" onclick="NC.exploreBrowse(' + (NC._explorePage - 1) + ')">&laquo; Anterior</button>';
             }
-            phtml += '<span style="color:var(--nc-text-light);font-size:13px;">Página ' + NC._explorePage + ' de ' + res.total_pages + '</span>';
+            phtml += '<span style="color:var(--nc-text-light);font-size:12px;">Página ' + NC._explorePage + ' de ' + res.total_pages + '</span>';
             if (NC._explorePage < res.total_pages) {
                 phtml += '<button class="nc-button nc-button-secondary nc-btn-sm" onclick="NC.exploreBrowse(' + (NC._explorePage + 1) + ')">Próxima &raquo;</button>';
             }
@@ -832,6 +828,69 @@ NC.exploreBrowse = function(page) {
             '<div class="nc-notice nc-notice-error" style="margin:16px;"><span class="dashicons dashicons-dismiss"></span> Erro: ' + (e.message || 'Falha na busca') + '</div>'
         );
     });
+};
+
+NC.exploreRenderItems = function(items) {
+    if (!items || items.length === 0) return;
+
+    var html = '';
+    if (NC._exploreViewMode === 'list') {
+        html = '<table class="nc-table" style="font-size:12px;"><thead><tr>' +
+            '<th style="width:30px;"></th><th style="width:50px;"></th><th>Título</th><th>Autor</th><th>Data</th><th>Status</th>' +
+            '</tr></thead><tbody>';
+        items.forEach(function(item) {
+            var isSelected = !!NC._exploreSelectedIds[item.tainacan_id];
+            var imported = item.already_imported;
+            var rowClass = imported ? ' style="opacity:0.5;"' : (isSelected ? ' style="background:rgba(6,214,160,0.08);"' : '');
+            html += '<tr' + rowClass + ' onclick="NC.exploreToggleItem(' + item.tainacan_id + ')" style="cursor:pointer;' + (imported ? 'opacity:0.5;' : '') + (isSelected ? 'background:rgba(6,214,160,0.08);' : '') + '">';
+            html += '<td><input type="checkbox" class="nc-explore-cb"' + (isSelected ? ' checked' : '') + (imported ? ' disabled' : '') + ' style="pointer-events:none;"></td>';
+            html += '<td>';
+            if (item.image_url) {
+                html += '<img src="' + NC.escapeHtml(item.image_url) + '" style="width:40px;height:40px;object-fit:cover;border-radius:4px;" loading="lazy">';
+            } else {
+                html += '<span class="dashicons dashicons-format-image" style="font-size:20px;width:40px;text-align:center;color:var(--nc-border);"></span>';
+            }
+            html += '</td>';
+            html += '<td><strong>' + NC.escapeHtml(item.title.length > 80 ? item.title.substring(0, 80) + '...' : item.title) + '</strong>';
+            if (item.description) html += '<br><small style="color:var(--nc-text-light);">' + NC.escapeHtml(item.description) + '</small>';
+            html += '</td>';
+            html += '<td>' + NC.escapeHtml(item.author || '—') + '</td>';
+            html += '<td><small>' + NC.escapeHtml(item.creation_date ? item.creation_date.substring(0, 10) : '—') + '</small></td>';
+            html += '<td>';
+            if (imported) html += '<span class="nc-badge nc-badge-info" style="font-size:9px;">Importado</span>';
+            else if (isSelected) html += '<span class="nc-badge nc-badge-success" style="font-size:9px;">Selecionado</span>';
+            html += '</td></tr>';
+        });
+        html += '</tbody></table>';
+    } else {
+        html = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;padding:12px;">';
+        items.forEach(function(item) {
+            var isSelected = !!NC._exploreSelectedIds[item.tainacan_id];
+            var imported = item.already_imported;
+            html += '<div class="nc-explore-tile' + (isSelected ? ' nc-explore-tile-selected' : '') + (imported ? ' nc-explore-tile-imported' : '') + '" data-tainacan-id="' + item.tainacan_id + '" onclick="NC.exploreToggleItem(' + item.tainacan_id + ')">';
+
+            if (item.image_url) {
+                html += '<div class="nc-explore-tile-img"><img src="' + NC.escapeHtml(item.image_url) + '" alt="" loading="lazy"></div>';
+            } else {
+                html += '<div class="nc-explore-tile-img nc-explore-tile-noimg"><span class="dashicons dashicons-format-image"></span></div>';
+            }
+
+            html += '<div class="nc-explore-tile-info">';
+            html += '<h4 class="nc-explore-tile-title">' + NC.escapeHtml(item.title.length > 50 ? item.title.substring(0, 50) + '...' : item.title) + '</h4>';
+            if (item.author) html += '<div class="nc-explore-tile-meta">' + NC.escapeHtml(item.author) + '</div>';
+
+            if (imported) {
+                html += '<span class="nc-badge nc-badge-info" style="font-size:9px;">Importado</span>';
+            } else if (isSelected) {
+                html += '<span class="nc-badge nc-badge-success" style="font-size:9px;">✓ Selecionado</span>';
+            }
+
+            html += '</div></div>';
+        });
+        html += '</div>';
+    }
+
+    jQuery('#nc-explore-results').html(html);
 };
 
 NC.exploreToggleItem = function(tainacanId) {
