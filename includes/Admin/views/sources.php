@@ -683,7 +683,7 @@ NC.openTainacanExplorer = function(source) {
                     '<span class="dashicons dashicons-search" style="position:absolute;left:8px;top:50%;transform:translateY(-50%);font-size:16px;width:16px;height:16px;color:var(--nc-text-light);"></span>' +
                     '<input type="text" id="nc-explore-search" class="nc-form-control" placeholder="Buscar no acervo..." value="' + NC.escapeHtml(searchTerms) + '" style="padding-left:30px;font-size:13px;">' +
                 '</div>' +
-                '<select id="nc-explore-orderby" class="nc-form-control" style="width:auto;font-size:12px;padding:6px 8px;">' +
+                '<select id="nc-explore-orderby" class="nc-form-control" style="width:auto;font-size:12px;padding:6px 24px 6px 8px;background-position:right 8px center;">' +
                     '<option value="date">Recentes</option>' +
                     '<option value="title">Título</option>' +
                 '</select>' +
@@ -739,7 +739,7 @@ NC.openTainacanExplorer = function(source) {
         fhtml += '<span style="font-size:11px;font-weight:600;color:var(--nc-text-light);">Filtros:</span>';
         facets.forEach(function(f) {
             if (!f.values || f.values.length === 0) return;
-            fhtml += '<select class="nc-form-control nc-explore-facet" data-slug="' + NC.escapeHtml(f.slug) + '" style="min-width:100px;max-width:160px;font-size:11px;padding:3px 6px;">';
+            fhtml += '<select class="nc-form-control nc-explore-facet" data-slug="' + NC.escapeHtml(f.slug) + '" style="min-width:100px;max-width:160px;font-size:11px;padding:3px 22px 3px 6px;background-position:right 6px center;">';
             fhtml += '<option value="">' + NC.escapeHtml(f.name) + '</option>';
             f.values.forEach(function(v) {
                 if (v) fhtml += '<option value="' + NC.escapeHtml(v) + '">' + NC.escapeHtml(v.length > 25 ? v.substring(0, 25) + '...' : v) + '</option>';
