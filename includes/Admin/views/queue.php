@@ -96,6 +96,16 @@ NC.loadPublications = function(status) {
             var contentPreview = contentText.length > 80 ? contentText.substring(0, 80) + '...' : contentText;
             var contentAttr = contentText.replace(/"/g, '&quot;');
 
+            // Thread indicator
+            var threadBadge = '';
+            if (pub.is_thread) {
+                var posLabel = (pub.thread_position === 0)
+                    ? '<span class="dashicons dashicons-admin-post" style="font-size:12px;width:12px;height:12px;"></span> Início'
+                    : '<span class="dashicons dashicons-format-status" style="font-size:12px;width:12px;height:12px;"></span> #' + (pub.thread_position + 1);
+                threadBadge = ' <span class="nc-badge" style="background:var(--nc-accent);color:#fff;font-size:10px;" title="Thread: ' + (pub.thread_id || '') + '">' +
+                    posLabel + '</span>';
+            }
+
             var accountName = '—';
             if (pub.mastodon_account_id && NC._mastodonAccounts) {
                 var acct = NC._mastodonAccounts.find(function(a) { return a.id == pub.mastodon_account_id; });
@@ -106,7 +116,7 @@ NC.loadPublications = function(status) {
                 '<td>' + date.toLocaleString('pt-BR') + '</td>' +
                 '<td>' + accountName + '</td>' +
                 '<td title="' + contentAttr + '">' + contentPreview + '</td>' +
-                '<td><span class="nc-badge ' + badgeClass + '">' + statusLabel + '</span></td>' +
+                '<td><span class="nc-badge ' + badgeClass + '">' + statusLabel + '</span>' + threadBadge + '</td>' +
                 '<td>' + (pub.attempt_count || 0) + ' / 3</td>' +
                 '<td class="nc-table-actions">';
 

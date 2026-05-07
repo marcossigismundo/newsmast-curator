@@ -261,6 +261,8 @@ class Collections_Controller extends Base_REST_Controller {
 
         $scheduled_for = sanitize_text_field($request['scheduled_for'] ?? '');
         $interval = (int) ($request['interval_minutes'] ?? 60);
+        $as_thread = !empty($request['as_thread']);
+        $mastodon_account_ids = $request['mastodon_account_ids'] ?? [];
 
         if (empty($scheduled_for)) {
             return $this->prepare_error(__('Data de agendamento é obrigatória', 'newsmast-curator'), 'validation_error', 400);
@@ -277,6 +279,15 @@ class Collections_Controller extends Base_REST_Controller {
             return $this->prepare_error(__('Intervalo deve ser pelo menos 1 minuto', 'newsmast-curator'), 'validation_error', 400);
         }
 
+        // Thread mode requires a single account (all posts must be from same author)
+        if ($as_thread && count($mastodon_account_ids) > 1) {
+            return $this->prepare_error(
+                __('Thread requer uma única conta Mastodon (todas as respostas devem ser do mesmo autor)', 'newsmast-curator'),
+                'validation_error',
+                400
+            );
+        }
+
         $rows = $repo->get_collection_items($request['id']);
         if (empty($rows)) {
             return $this->prepare_error(__('Coleção não possui itens', 'newsmast-curator'), 'empty_collection', 400);
@@ -285,30 +296,57 @@ class Collections_Controller extends Base_REST_Controller {
         $pub_repo = new Publication_Repository($this->database);
         $created = 0;
 
-        foreach ($rows as $index => $row) {
-            $item = Item::from_row($row);
-            $pub_time = date('Y-m-d H:i:s', $start_timestamp + ($index * $interval * 60));
+        // Generate thread_id for thread mode
+        $thread_id = $as_thread ? 'thread_' . $request['id'] . '_' . time() : null;
 
-            $pub = new Publication();
-            $pub->set_item_id($item->get_id());
-            $pub->set_scheduled_for($pub_time);
-            $pub->set_content($item->get_formatted_content());
-            $pub->set_published_by(get_current_user_id());
+        // For thread mode: shorter interval (replies should be close together)
+        $effective_interval = $as_thread ? max($interval, 1) : $interval;
 
-            if ($pub_repo->insert($pub)) {
-                $created++;
+        // Determine target accounts
+        $target_accounts = !empty($mastodon_account_ids)
+            ? array_map('intval', (array) $mastodon_account_ids)
+            : [null]; // null = default account
+
+        foreach ($target_accounts as $account_id) {
+            // Each account gets its own thread_id to avoid cross-account thread conflicts
+            $account_thread_id = $thread_id && $account_id ? $thread_id . '_a' . $account_id : $thread_id;
+
+            foreach ($rows as $index => $row) {
+                $item = Item::from_row($row);
+                $pub_time = date('Y-m-d H:i:s', $start_timestamp + ($index * $effective_interval * 60));
+
+                $pub = new Publication();
+                $pub->set_item_id($item->get_id());
+                $pub->set_scheduled_for($pub_time);
+                $pub->set_content($item->get_formatted_content());
+                $pub->set_published_by(get_current_user_id());
+
+                if ($account_id) {
+                    $pub->set_mastodon_account_id($account_id);
+                }
+
+                if ($as_thread) {
+                    $pub->set_thread_id($account_thread_id ?: $thread_id);
+                    $pub->set_thread_position($index);
+                }
+
+                if ($pub_repo->insert($pub)) {
+                    $created++;
+                }
             }
         }
 
         $collection->set_status(Collection::STATUS_SCHEDULED);
         $collection->set_scheduled_for(date('Y-m-d H:i:s', $start_timestamp));
-        $collection->set_interval_minutes($interval);
+        $collection->set_interval_minutes($effective_interval);
         $repo->update($collection);
 
         return $this->prepare_response([
             'success' => true,
             'publications_created' => $created,
             'total_items' => count($rows),
+            'as_thread' => $as_thread,
+            'thread_id' => $thread_id,
         ]);
     }
 
