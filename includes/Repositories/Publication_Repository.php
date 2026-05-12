@@ -66,6 +66,22 @@ class Publication_Repository extends Base_Repository {
     }
 
     /**
+     * Conta publicações agendadas cuja hora já passou (vencidas / overdue).
+     * Usado para diagnóstico: se > 0, o cron não está executando.
+     *
+     * @return int
+     */
+    public function count_overdue_scheduled() {
+        return (int) $this->wpdb->get_var(
+            $this->wpdb->prepare(
+                "SELECT COUNT(*) FROM {$this->table_name}
+                 WHERE status = 'scheduled' AND scheduled_for <= %s",
+                current_time('mysql')
+            )
+        );
+    }
+
+    /**
      * Conta publicações por status para diagnóstico
      *
      * @return array

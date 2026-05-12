@@ -107,6 +107,9 @@ class Plugin {
         // Registra endpoint externo de cron (independente de WP-Cron)
         $this->init_external_cron();
 
+        // Fallback: dispara scheduler ao abrir páginas do plugin se houver pubs vencidas
+        $this->init_admin_scheduler_fallback();
+
         // Hook de inicialização completa
         do_action('nc_loaded', $this);
     }
@@ -303,6 +306,40 @@ class Plugin {
             header('Content-Type: text/plain');
             echo 'OK: ' . implode(', ', $results);
             exit;
+        });
+    }
+
+    /**
+     * Fallback: dispara o scheduler quando o admin carrega uma página do plugin
+     * e existem publicações vencidas. Útil quando o WP-Cron não dispara por
+     * falta de tráfego no site.
+     *
+     * Rate-limit via transient (60s) para evitar disparos múltiplos. O próprio
+     * scheduler também tem lock interno, então é seguro chamar.
+     */
+    private function init_admin_scheduler_fallback() {
+        add_action('admin_init', function() {
+            // Só em páginas do plugin
+            $page = isset($_GET['page']) ? sanitize_text_field($_GET['page']) : '';
+            if (strpos($page, 'newsmast-curator') !== 0) {
+                return;
+            }
+
+            // Rate limit: máximo 1 vez por minuto
+            if (get_transient('nc_admin_fallback_recent')) {
+                return;
+            }
+
+            $pub_repo = new \NewsmastCurator\Repositories\Publication_Repository($this->database);
+            if ($pub_repo->count_overdue_scheduled() === 0) {
+                return;
+            }
+
+            set_transient('nc_admin_fallback_recent', 1, 60);
+
+            // Executa scheduler. Lock interno previne concorrência.
+            $scheduler = new \NewsmastCurator\Services\Scheduler_Service($this->database);
+            $scheduler->process_scheduled_publications();
         });
     }
 

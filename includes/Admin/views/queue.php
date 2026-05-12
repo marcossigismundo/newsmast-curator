@@ -21,6 +21,18 @@
     <span><?php _e('Selecione um item aprovado na curadoria, edite o conteúdo e agende a data/hora da publicação no Mastodon.', 'newsmast-curator'); ?></span>
 </div>
 
+<!-- Banner de saúde da fila (overdue) -->
+<div id="nc-queue-overdue-banner" class="nc-notice nc-notice-warning" style="display:none;margin-bottom:20px;justify-content:space-between;align-items:center;">
+    <div>
+        <span class="dashicons dashicons-warning"></span>
+        <strong id="nc-queue-overdue-count">0</strong>
+        <?php _e('publicação(ões) já estão na hora de publicar mas ainda não foram processadas. Isso pode acontecer se o WP-Cron não disparou (site sem tráfego).', 'newsmast-curator'); ?>
+    </div>
+    <button class="nc-button nc-button-warning nc-btn-sm" onclick="NC.processQueueNow()">
+        <span class="dashicons dashicons-controls-play"></span> <?php _e('Processar agora', 'newsmast-curator'); ?>
+    </button>
+</div>
+
 <div class="nc-tabs">
     <button class="nc-tab active" data-tab="scheduled" onclick="NC.loadPublications('scheduled')">
         <?php _e('Agendadas', 'newsmast-curator'); ?> <span id="nc-count-scheduled" class="nc-badge nc-badge-info">0</span>
@@ -60,7 +72,23 @@ jQuery(document).ready(function($) {
         NC.loadPublications('scheduled');
     });
     NC.loadPublicationCounts();
+    NC.checkQueueHealth();
+
+    // Re-check overdue every 30s while the page is open
+    setInterval(NC.checkQueueHealth, 30000);
 });
+
+NC.checkQueueHealth = function() {
+    wp.apiFetch({path: ncData.apiUrl + '/publications/queue-health'}).then(function(health) {
+        var overdue = health.overdue || 0;
+        if (overdue > 0) {
+            jQuery('#nc-queue-overdue-count').text(overdue);
+            jQuery('#nc-queue-overdue-banner').css('display', 'flex');
+        } else {
+            jQuery('#nc-queue-overdue-banner').hide();
+        }
+    }).catch(function() {});
+};
 
 NC.loadPublicationCounts = function() {
     ['scheduled', 'published', 'failed'].forEach(function(status) {
@@ -253,6 +281,7 @@ NC.processQueueNow = function() {
         NC.showNotice('success', 'Fila processada! Publicadas: ' + published + ' | Falhas: ' + failed);
         NC.loadPublications('scheduled');
         NC.loadPublicationCounts();
+        NC.checkQueueHealth();
     }).catch(function(error) {
         NC.showNotice('error', 'Erro ao processar fila: ' + (error.message || ''));
     }).finally(function() {

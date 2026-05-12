@@ -29,6 +29,29 @@ class Publications_Controller extends Base_REST_Controller {
         register_rest_route($this->namespace, '/wp-categories', [
             ['methods' => 'GET', 'callback' => [$this, 'get_wp_categories'], 'permission_callback' => [$this, 'check_permissions']],
         ]);
+
+        register_rest_route($this->namespace, '/' . $this->rest_base . '/queue-health', [
+            ['methods' => 'GET', 'callback' => [$this, 'get_queue_health'], 'permission_callback' => [$this, 'check_permissions']],
+        ]);
+    }
+
+    /**
+     * Saúde da fila: contadores rápidos + próxima execução do cron + indicador de overdue.
+     */
+    public function get_queue_health($request) {
+        $repo = new Publication_Repository($this->database);
+        $overdue = $repo->count_overdue_scheduled();
+        $by_status = $repo->count_by_status();
+        $next_cron = wp_next_scheduled('nc_process_publications');
+
+        return $this->prepare_response([
+            'overdue' => $overdue,
+            'scheduled' => $by_status['scheduled'] ?? 0,
+            'processing' => $by_status['processing'] ?? 0,
+            'failed' => $by_status['failed'] ?? 0,
+            'next_cron' => $next_cron ? gmdate('Y-m-d H:i:s', $next_cron) : null,
+            'next_cron_in_seconds' => $next_cron ? ($next_cron - time()) : null,
+        ]);
     }
 
     /**
