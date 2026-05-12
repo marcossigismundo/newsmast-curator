@@ -981,7 +981,37 @@
                                 '<span>' + NC.__('include_images', 'Incluir imagens (quando disponíveis)') + '</span>' +
                             '</label>' +
                         '</div>' +
-                        '<div id="nc-bulk-accounts-container"></div>' +
+                        // Destinos: Mastodon / WordPress / Ambos
+                        '<div class="nc-form-group">' +
+                            '<label class="nc-form-label">' +
+                                '<span class="dashicons dashicons-share" style="font-size:16px;vertical-align:text-bottom;"></span> ' +
+                                NC.__('destinations', 'Destinos da publicação') +
+                            '</label>' +
+                            '<div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;">' +
+                                '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;">' +
+                                    '<input type="checkbox" class="nc-bulk-dest-cb" value="mastodon" checked> ' +
+                                    '<span class="dashicons dashicons-admin-site-alt3" style="color:var(--nc-accent);"></span> Mastodon' +
+                                '</label>' +
+                                '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;">' +
+                                    '<input type="checkbox" class="nc-bulk-dest-cb" value="wordpress"> ' +
+                                    '<span class="dashicons dashicons-wordpress" style="color:var(--nc-accent);"></span> WordPress (post em categoria)' +
+                                '</label>' +
+                            '</div>' +
+                        '</div>' +
+                        // WordPress category selector (hidden by default)
+                        '<div class="nc-form-group" id="nc-bulk-wp-group" style="display:none;">' +
+                            '<label class="nc-form-label">' +
+                                '<span class="dashicons dashicons-category" style="font-size:16px;vertical-align:text-bottom;"></span> ' +
+                                NC.__('wp_category', 'Categoria WordPress') + ' *' +
+                            '</label>' +
+                            '<select id="nc-bulk-wp-category" class="nc-form-control">' +
+                                '<option value="">' + NC.__('loading', 'Carregando...') + '</option>' +
+                            '</select>' +
+                            '<span class="nc-form-help">' + NC.__('wp_category_bulk_help', 'Cada item selecionado será publicado como post nesta categoria.') + '</span>' +
+                        '</div>' +
+                        '<div id="nc-bulk-mastodon-group">' +
+                            '<div id="nc-bulk-accounts-container"></div>' +
+                        '</div>' +
                         '<div class="nc-form-group">' +
                             '<label class="nc-form-label">' + NC.__('expected_timeline', 'Cronograma previsto') + '</label>' +
                             '<div class="nc-bulk-timeline" id="nc-bulk-timeline"></div>' +
@@ -1002,6 +1032,32 @@
 
             $('#nc-bulk-start-datetime, #nc-bulk-interval').on('change', function() {
                 NC.updateBulkPreview();
+            });
+
+            // Bulk destination toggle handler
+            $(document).on('change', '.nc-bulk-dest-cb', function() {
+                var $wp = $('.nc-bulk-dest-cb[value="wordpress"]');
+                var $masto = $('.nc-bulk-dest-cb[value="mastodon"]');
+                var wpOn = $wp.is(':checked');
+                var mastoOn = $masto.is(':checked');
+
+                if (!wpOn && !mastoOn) {
+                    $masto.prop('checked', true);
+                    mastoOn = true;
+                }
+
+                $('#nc-bulk-wp-group').toggle(wpOn);
+                $('#nc-bulk-mastodon-group').toggle(mastoOn);
+
+                if (wpOn && $('#nc-bulk-wp-category option').length <= 1) {
+                    wp.apiFetch({path: ncData.apiUrl + '/wp-categories'}).then(function(data) {
+                        var html = '<option value="">' + NC.__('select_category', 'Selecione uma categoria...') + '</option>';
+                        (data.categories || []).forEach(function(c) {
+                            html += '<option value="' + c.id + '">' + NC.escapeHtml(c.name) + ' (' + c.count + ')</option>';
+                        });
+                        $('#nc-bulk-wp-category').html(html);
+                    });
+                }
             });
         },
 
@@ -1058,6 +1114,23 @@
                 return;
             }
 
+            // Collect destinations
+            var destinations = [];
+            $('#nc-bulk-schedule-modal .nc-bulk-dest-cb:checked').each(function() {
+                destinations.push($(this).val());
+            });
+            if (destinations.length === 0) destinations = ['mastodon'];
+
+            // Validate WP category if WordPress is a destination
+            var wpCategoryId = 0;
+            if (destinations.indexOf('wordpress') !== -1) {
+                wpCategoryId = parseInt($('#nc-bulk-wp-category').val()) || 0;
+                if (!wpCategoryId) {
+                    this.showNotice('warning', NC.__('wp_category_required', 'Selecione uma categoria do WordPress.'));
+                    return;
+                }
+            }
+
             // Collect selected account IDs for bulk
             var accountIds = [];
             $('.nc-bulk-account-cb:checked').each(function() {
@@ -1077,8 +1150,13 @@
                 var data = {
                     item_id: parseInt(item.id),
                     scheduled_for: scheduled,
-                    content: item.formatted
+                    content: item.formatted,
+                    destinations: destinations
                 };
+
+                if (wpCategoryId > 0) {
+                    data.wp_category_id = wpCategoryId;
+                }
 
                 if (accountIds.length > 0) {
                     data.mastodon_account_ids = accountIds;
@@ -1092,10 +1170,12 @@
             });
 
             Promise.all(promises).then(function() {
-                var totalPubs = accountIds.length > 1
-                    ? items.length + ' itens x ' + accountIds.length + ' contas = ' + (items.length * accountIds.length) + ' publicações agendadas!'
-                    : items.length + ' ' + NC.__('publications_scheduled', 'publicações agendadas com sucesso!');
-                NC.showNotice('success', totalPubs);
+                var parts = [];
+                if (destinations.indexOf('mastodon') !== -1) {
+                    parts.push(accountIds.length > 1 ? accountIds.length + ' contas Mastodon' : 'Mastodon');
+                }
+                if (destinations.indexOf('wordpress') !== -1) parts.push('WordPress');
+                NC.showNotice('success', items.length + ' itens agendados em: ' + parts.join(' + '));
                 NC.closeModal('nc-bulk-schedule-modal');
                 if (typeof NC.loadPublications === 'function') {
                     setTimeout(function() { NC.loadPublications('scheduled'); }, 1000);
