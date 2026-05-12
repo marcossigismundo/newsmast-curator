@@ -33,6 +33,16 @@
     </button>
 </div>
 
+<div style="display:flex;justify-content:flex-end;align-items:center;gap:8px;margin-bottom:10px;">
+    <label for="nc-queue-sort" style="font-size:12px;color:var(--nc-text-light);">
+        <span class="dashicons dashicons-sort" style="font-size:14px;width:14px;height:14px;vertical-align:middle;"></span>
+        <?php _e('Ordenar:', 'newsmast-curator'); ?>
+    </label>
+    <select id="nc-queue-sort" class="nc-form-control" style="width:auto;font-size:12px;padding:4px 28px 4px 8px;background-position:right 8px center;" onchange="NC.applyQueueSort()">
+        <!-- populado dinamicamente conforme aba ativa -->
+    </select>
+</div>
+
 <div class="nc-card">
     <div class="nc-card-body" id="nc-publications-list">
         <div class="nc-loading"><div class="nc-spinner"></div></div>
@@ -60,6 +70,51 @@ NC.loadPublicationCounts = function() {
     });
 };
 
+// Opções de ordenação por status. Primeira opção = default.
+NC._sortOptionsByStatus = {
+    scheduled: [
+        { value: 'scheduled_for:ASC',  label: 'Próxima a publicar' },
+        { value: 'scheduled_for:DESC', label: 'Mais distante primeiro' },
+        { value: 'created_at:DESC',    label: 'Agendamento mais recente' },
+        { value: 'created_at:ASC',     label: 'Agendamento mais antigo' }
+    ],
+    published: [
+        { value: 'published_at:DESC',  label: 'Publicado recentemente' },
+        { value: 'published_at:ASC',   label: 'Publicado há mais tempo' },
+        { value: 'scheduled_for:ASC',  label: 'Por data de agendamento' }
+    ],
+    failed: [
+        { value: 'updated_at:DESC',    label: 'Falha mais recente' },
+        { value: 'updated_at:ASC',     label: 'Falha mais antiga' },
+        { value: 'scheduled_for:ASC',  label: 'Por data de agendamento' }
+    ]
+};
+
+NC.getSortPref = function(status) {
+    var key = 'nc_queue_sort_' + status;
+    var saved = localStorage.getItem(key);
+    var opts = NC._sortOptionsByStatus[status] || [];
+    if (saved && opts.some(function(o) { return o.value === saved; })) return saved;
+    return opts.length ? opts[0].value : 'scheduled_for:ASC';
+};
+
+NC.populateSortSelector = function(status) {
+    var opts = NC._sortOptionsByStatus[status] || [];
+    var current = NC.getSortPref(status);
+    var html = '';
+    opts.forEach(function(o) {
+        html += '<option value="' + o.value + '"' + (o.value === current ? ' selected' : '') + '>' + o.label + '</option>';
+    });
+    jQuery('#nc-queue-sort').html(html);
+};
+
+NC.applyQueueSort = function() {
+    var val = jQuery('#nc-queue-sort').val();
+    var status = jQuery('.nc-tab.active').data('tab') || 'scheduled';
+    localStorage.setItem('nc_queue_sort_' + status, val);
+    NC.loadPublications(status);
+};
+
 NC.loadPublications = function(status) {
     status = status || 'scheduled';
 
@@ -67,9 +122,17 @@ NC.loadPublications = function(status) {
     jQuery('.nc-tab').removeClass('active');
     jQuery('.nc-tab[data-tab="' + status + '"]').addClass('active');
 
+    // Atualiza seletor de ordenação para opções da aba atual
+    NC.populateSortSelector(status);
+
+    var sortPref = NC.getSortPref(status);
+    var parts = sortPref.split(':');
+    var orderby = parts[0];
+    var order = parts[1] || 'ASC';
+
     jQuery('#nc-publications-list').html('<div class="nc-loading"><div class="nc-spinner"></div></div>');
 
-    wp.apiFetch({path: ncData.apiUrl + '/publications?status=' + status + '&per_page=50'}).then(function(pubs) {
+    wp.apiFetch({path: ncData.apiUrl + '/publications?status=' + status + '&per_page=50&orderby=' + encodeURIComponent(orderby) + '&order=' + encodeURIComponent(order)}).then(function(pubs) {
         if (!pubs || pubs.length === 0) {
             var emptyIcon = status === 'scheduled' ? 'calendar-alt' : status === 'published' ? 'yes-alt' : 'warning';
             var emptyMsg = status === 'scheduled' ? 'Nenhuma publicação agendada. Clique em "Agendar Publicação" para começar.' :

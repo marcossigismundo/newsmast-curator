@@ -42,9 +42,42 @@ class Publications_Controller extends Base_REST_Controller {
     public function get_items($request) {
         $repo = new Publication_Repository($this->database);
         $args = [];
-        if (isset($request['status'])) $args['status'] = $request['status'];
+        $status = isset($request['status']) ? sanitize_text_field($request['status']) : '';
+        if ($status) $args['status'] = $status;
         $args['per_page'] = $request['per_page'] ?? 20;
         $args['page'] = $request['page'] ?? 1;
+
+        // Ordenação: aceita orderby + order. Defaults inteligentes por status:
+        // - scheduled: scheduled_for ASC (próxima a publicar primeiro)
+        // - published: published_at DESC (mais recente primeiro)
+        // - failed:    updated_at DESC (falha mais recente primeiro)
+        $allowed_orderby = ['scheduled_for', 'published_at', 'updated_at', 'created_at', 'id'];
+        $orderby = isset($request['orderby']) ? sanitize_key($request['orderby']) : '';
+        $order = isset($request['order']) ? strtoupper(sanitize_key($request['order'])) : '';
+
+        if (!in_array($orderby, $allowed_orderby, true)) {
+            // default por status
+            if ($status === 'scheduled' || $status === 'processing') {
+                $orderby = 'scheduled_for';
+                $order = $order ?: 'ASC';
+            } elseif ($status === 'published') {
+                $orderby = 'published_at';
+                $order = $order ?: 'DESC';
+            } elseif ($status === 'failed') {
+                $orderby = 'updated_at';
+                $order = $order ?: 'DESC';
+            } else {
+                $orderby = 'scheduled_for';
+                $order = $order ?: 'ASC';
+            }
+        }
+
+        if (!in_array($order, ['ASC', 'DESC'], true)) {
+            $order = 'ASC';
+        }
+
+        $args['orderby'] = $orderby;
+        $args['order'] = $order;
 
         $pubs = $repo->find_all($args);
         return $this->prepare_response(array_map(fn($p) => $p->to_api_response(), $pubs));
