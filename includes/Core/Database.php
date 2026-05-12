@@ -28,7 +28,7 @@ class Database {
      *
      * @var string
      */
-    private $db_version = '1.4.0';
+    private $db_version = '1.5.0';
 
     /**
      * Construtor
@@ -91,6 +91,7 @@ class Database {
             $this->migrate_publications_mastodon_account();
             $this->migrate_publications_alt_text();
             $this->migrate_publications_thread();
+            $this->migrate_publications_wordpress();
 
             update_option('nc_db_version', $this->db_version);
 
@@ -382,6 +383,22 @@ class Database {
             $this->wpdb->query("ALTER TABLE {$table} ADD COLUMN thread_id VARCHAR(50) NULL AFTER alt_text");
             $this->wpdb->query("ALTER TABLE {$table} ADD COLUMN thread_position INT NULL AFTER thread_id");
             $this->wpdb->query("ALTER TABLE {$table} ADD KEY idx_thread_id (thread_id)");
+        }
+    }
+
+    /**
+     * Migração: adiciona campos de publicação WordPress
+     */
+    private function migrate_publications_wordpress() {
+        $table = $this->tables['publications'];
+        $row = $this->wpdb->get_row("SHOW COLUMNS FROM {$table} LIKE 'destination_type'");
+        if (!$row) {
+            $this->wpdb->query("ALTER TABLE {$table} ADD COLUMN destination_type VARCHAR(20) DEFAULT 'mastodon' AFTER item_id");
+            $this->wpdb->query("ALTER TABLE {$table} ADD COLUMN wp_category_id BIGINT(20) UNSIGNED NULL AFTER destination_type");
+            $this->wpdb->query("ALTER TABLE {$table} ADD COLUMN wp_post_id BIGINT(20) UNSIGNED NULL AFTER wp_category_id");
+            $this->wpdb->query("ALTER TABLE {$table} ADD COLUMN wp_post_url VARCHAR(500) NULL AFTER wp_post_id");
+            $this->wpdb->query("ALTER TABLE {$table} ADD KEY idx_destination_type (destination_type)");
+            $this->wpdb->query("ALTER TABLE {$table} ADD KEY idx_wp_post_id (wp_post_id)");
         }
     }
 

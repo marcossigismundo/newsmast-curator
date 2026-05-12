@@ -25,6 +25,18 @@ class Publications_Controller extends Base_REST_Controller {
         register_rest_route($this->namespace, '/' . $this->rest_base . '/process-now', [
             ['methods' => 'POST', 'callback' => [$this, 'process_now'], 'permission_callback' => [$this, 'check_permissions']],
         ]);
+
+        register_rest_route($this->namespace, '/wp-categories', [
+            ['methods' => 'GET', 'callback' => [$this, 'get_wp_categories'], 'permission_callback' => [$this, 'check_permissions']],
+        ]);
+    }
+
+    /**
+     * Lista categorias do WordPress (para seletor no modal de agendamento)
+     */
+    public function get_wp_categories($request) {
+        $categories = \NewsmastCurator\Services\WordPress_Publisher_Service::get_categories();
+        return $this->prepare_response(['categories' => $categories]);
     }
 
     public function get_items($request) {
@@ -46,6 +58,13 @@ class Publications_Controller extends Base_REST_Controller {
         $mastodon_account_ids = isset($request['mastodon_account_ids']) ? array_map('intval', (array) $request['mastodon_account_ids']) : [];
         $mastodon_account_id = isset($request['mastodon_account_id']) ? (int) $request['mastodon_account_id'] : 0;
 
+        // Destinos: mastodon, wordpress, ou ambos
+        $destinations = isset($request['destinations']) ? (array) $request['destinations'] : ['mastodon'];
+        $destinations = array_intersect($destinations, ['mastodon', 'wordpress']);
+        if (empty($destinations)) $destinations = ['mastodon'];
+
+        $wp_category_id = isset($request['wp_category_id']) ? (int) $request['wp_category_id'] : 0;
+
         if (empty($item_id)) {
             return $this->prepare_error(__('Item é obrigatório', 'newsmast-curator'), 'validation_error', 400);
         }
@@ -60,8 +79,6 @@ class Publications_Controller extends Base_REST_Controller {
         }
 
         $timestamp = strtotime($scheduled_for);
-        // Allow same-day scheduling: accept if scheduled_for is within 60 seconds in the past
-        // (to account for processing delay), but never truly retroactive
         $now = current_time('timestamp');
         if (!$timestamp || $timestamp < ($now - 60)) {
             return $this->prepare_error(__('Data de agendamento deve ser atual ou futura (não retroativa)', 'newsmast-curator'), 'validation_error', 400);
@@ -71,47 +88,62 @@ class Publications_Controller extends Base_REST_Controller {
             return $this->prepare_error(__('Conteúdo é obrigatório', 'newsmast-curator'), 'validation_error', 400);
         }
 
-        // Normalize datetime to MySQL format (Y-m-d H:i:s) for consistent DB comparison
+        // Valida categoria WP se destino inclui WordPress
+        if (in_array('wordpress', $destinations, true)) {
+            if (!$wp_category_id || !term_exists($wp_category_id, 'category')) {
+                return $this->prepare_error(
+                    __('Categoria WordPress é obrigatória quando o destino inclui WordPress', 'newsmast-curator'),
+                    'validation_error',
+                    400
+                );
+            }
+        }
+
         $normalized_datetime = date('Y-m-d H:i:s', $timestamp);
-
         $repo = new Publication_Repository($this->database);
+        $created = [];
 
-        // Se múltiplas contas selecionadas, cria uma publicação por conta
-        if (!empty($mastodon_account_ids)) {
-            $created = [];
-            foreach ($mastodon_account_ids as $account_id) {
+        // Cria publicação Mastodon (uma por conta, se múltiplas)
+        if (in_array('mastodon', $destinations, true)) {
+            $accounts = !empty($mastodon_account_ids) ? $mastodon_account_ids
+                : ($mastodon_account_id > 0 ? [$mastodon_account_id] : [0]);
+
+            foreach ($accounts as $account_id) {
                 $pub = new Publication();
                 $pub->set_item_id($item_id);
-                $pub->set_mastodon_account_id($account_id);
+                $pub->set_destination_type(Publication::DESTINATION_MASTODON);
+                if ($account_id > 0) {
+                    $pub->set_mastodon_account_id($account_id);
+                }
                 $pub->set_scheduled_for($normalized_datetime);
                 $pub->set_content($content);
                 $pub->set_alt_text($alt_text);
                 $pub->set_published_by(get_current_user_id());
 
-                $id = $repo->insert($pub);
-                if ($id) {
+                if ($repo->insert($pub)) {
                     $created[] = $pub->to_api_response();
                 }
             }
-            return !empty($created)
-                ? $this->prepare_response($created, 201)
-                : $this->prepare_error(__('Falha ao criar publicações', 'newsmast-curator'));
         }
 
-        // Publicação única (conta única ou padrão)
-        $pub = new Publication();
-        $pub->set_item_id($item_id);
-        if ($mastodon_account_id > 0) {
-            $pub->set_mastodon_account_id($mastodon_account_id);
+        // Cria publicação WordPress
+        if (in_array('wordpress', $destinations, true)) {
+            $pub = new Publication();
+            $pub->set_item_id($item_id);
+            $pub->set_destination_type(Publication::DESTINATION_WORDPRESS);
+            $pub->set_wp_category_id($wp_category_id);
+            $pub->set_scheduled_for($normalized_datetime);
+            $pub->set_content($content);
+            $pub->set_published_by(get_current_user_id());
+
+            if ($repo->insert($pub)) {
+                $created[] = $pub->to_api_response();
+            }
         }
-        $pub->set_scheduled_for($normalized_datetime);
-        $pub->set_content($content);
-        $pub->set_alt_text($alt_text);
-        $pub->set_published_by(get_current_user_id());
 
-        $id = $repo->insert($pub);
-
-        return $id ? $this->prepare_response($pub->to_api_response(), 201) : $this->prepare_error(__('Falha ao criar publicação', 'newsmast-curator'));
+        return !empty($created)
+            ? $this->prepare_response(count($created) === 1 ? $created[0] : $created, 201)
+            : $this->prepare_error(__('Falha ao criar publicações', 'newsmast-curator'));
     }
 
     public function delete_item($request) {

@@ -11,7 +11,11 @@ namespace NewsmastCurator\Models;
 class Publication {
     private $id = 0;
     private $item_id = 0;
+    private $destination_type = 'mastodon';
     private $mastodon_account_id = null;
+    private $wp_category_id = null;
+    private $wp_post_id = null;
+    private $wp_post_url = null;
     private $status = 'scheduled';
     private $scheduled_for = '';
     private $content = '';
@@ -34,10 +38,18 @@ class Publication {
     const STATUS_PUBLISHED = 'published';
     const STATUS_FAILED = 'failed';
 
+    // Constantes de destino
+    const DESTINATION_MASTODON = 'mastodon';
+    const DESTINATION_WORDPRESS = 'wordpress';
+
     // Getters
     public function get_id() { return $this->id; }
     public function get_item_id() { return $this->item_id; }
+    public function get_destination_type() { return $this->destination_type; }
     public function get_mastodon_account_id() { return $this->mastodon_account_id; }
+    public function get_wp_category_id() { return $this->wp_category_id; }
+    public function get_wp_post_id() { return $this->wp_post_id; }
+    public function get_wp_post_url() { return $this->wp_post_url; }
     public function get_status() { return $this->status; }
     public function get_scheduled_for() { return $this->scheduled_for; }
     public function get_content() { return $this->content; }
@@ -57,7 +69,15 @@ class Publication {
     // Setters
     public function set_id($id) { $this->id = (int) $id; }
     public function set_item_id($id) { $this->item_id = (int) $id; }
+    public function set_destination_type($type) {
+        $type = sanitize_text_field($type);
+        $this->destination_type = in_array($type, [self::DESTINATION_MASTODON, self::DESTINATION_WORDPRESS], true)
+            ? $type : self::DESTINATION_MASTODON;
+    }
     public function set_mastodon_account_id($id) { $this->mastodon_account_id = $id ? (int) $id : null; }
+    public function set_wp_category_id($id) { $this->wp_category_id = $id ? (int) $id : null; }
+    public function set_wp_post_id($id) { $this->wp_post_id = $id ? (int) $id : null; }
+    public function set_wp_post_url($url) { $this->wp_post_url = $url ? esc_url_raw($url) : null; }
     public function set_status($status) { $this->status = sanitize_text_field($status); }
     public function set_scheduled_for($datetime) { $this->scheduled_for = $datetime; }
     public function set_content($content) { $this->content = sanitize_textarea_field($content); }
@@ -113,6 +133,35 @@ class Publication {
         $this->mastodon_url = $mastodon_url;
         $this->published_at = current_time('mysql');
         $this->last_error = null;
+    }
+
+    /**
+     * Marca como publicada no WordPress
+     *
+     * @param int $post_id ID do post no WordPress
+     * @param string $post_url URL do post
+     * @return void
+     */
+    public function mark_as_published_wp($post_id, $post_url) {
+        $this->status = self::STATUS_PUBLISHED;
+        $this->wp_post_id = (int) $post_id;
+        $this->wp_post_url = $post_url;
+        $this->published_at = current_time('mysql');
+        $this->last_error = null;
+    }
+
+    /**
+     * Verifica se é publicação WordPress
+     */
+    public function is_wordpress() {
+        return $this->destination_type === self::DESTINATION_WORDPRESS;
+    }
+
+    /**
+     * Verifica se é publicação Mastodon
+     */
+    public function is_mastodon() {
+        return $this->destination_type === self::DESTINATION_MASTODON;
     }
 
     /**
@@ -216,7 +265,11 @@ class Publication {
 
         $pub->set_id($row->id ?? 0);
         $pub->set_item_id($row->item_id ?? 0);
+        $pub->set_destination_type($row->destination_type ?? 'mastodon');
         $pub->set_mastodon_account_id($row->mastodon_account_id ?? null);
+        $pub->set_wp_category_id($row->wp_category_id ?? null);
+        $pub->set_wp_post_id($row->wp_post_id ?? null);
+        $pub->set_wp_post_url($row->wp_post_url ?? null);
         $pub->set_status($row->status ?? 'scheduled');
         $pub->set_scheduled_for($row->scheduled_for ?? '');
         $pub->set_content($row->content ?? '');
@@ -244,7 +297,11 @@ class Publication {
     public function to_array() {
         $data = [
             'item_id' => $this->item_id,
+            'destination_type' => $this->destination_type,
             'mastodon_account_id' => $this->mastodon_account_id,
+            'wp_category_id' => $this->wp_category_id,
+            'wp_post_id' => $this->wp_post_id,
+            'wp_post_url' => $this->wp_post_url,
             'status' => $this->status,
             'scheduled_for' => $this->scheduled_for,
             'content' => $this->content,
@@ -278,7 +335,11 @@ class Publication {
         return [
             'id' => $this->id,
             'item_id' => $this->item_id,
+            'destination_type' => $this->destination_type,
             'mastodon_account_id' => $this->mastodon_account_id,
+            'wp_category_id' => $this->wp_category_id,
+            'wp_post_id' => $this->wp_post_id,
+            'wp_post_url' => $this->wp_post_url,
             'status' => $this->status,
             'scheduled_for' => $this->scheduled_for,
             'content' => $this->content,

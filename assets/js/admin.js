@@ -530,7 +530,38 @@
                                     '</label>' +
                                 '</div>' +
                             '</div>' +
-                            '<div id="nc-schedule-accounts-container"></div>' +
+                            // Destinos: Mastodon / WordPress / Ambos
+                            '<div class="nc-form-group">' +
+                                '<label class="nc-form-label">' +
+                                    '<span class="dashicons dashicons-share" style="font-size:16px;vertical-align:text-bottom;"></span> ' +
+                                    NC.__('destinations', 'Destinos da publicação') +
+                                '</label>' +
+                                '<div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;">' +
+                                    '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;">' +
+                                        '<input type="checkbox" class="nc-dest-cb" value="mastodon" checked> ' +
+                                        '<span class="dashicons dashicons-admin-site-alt3" style="color:var(--nc-accent);"></span> Mastodon' +
+                                    '</label>' +
+                                    '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;">' +
+                                        '<input type="checkbox" class="nc-dest-cb" value="wordpress"> ' +
+                                        '<span class="dashicons dashicons-wordpress" style="color:var(--nc-accent);"></span> WordPress (post em categoria)' +
+                                    '</label>' +
+                                '</div>' +
+                            '</div>' +
+                            // WordPress category selector (hidden by default)
+                            '<div class="nc-form-group" id="nc-schedule-wp-group" style="display:none;">' +
+                                '<label class="nc-form-label">' +
+                                    '<span class="dashicons dashicons-category" style="font-size:16px;vertical-align:text-bottom;"></span> ' +
+                                    NC.__('wp_category', 'Categoria WordPress') + ' *' +
+                                '</label>' +
+                                '<select id="nc-schedule-wp-category" class="nc-form-control">' +
+                                    '<option value="">' + NC.__('loading', 'Carregando...') + '</option>' +
+                                '</select>' +
+                                '<span class="nc-form-help">' + NC.__('wp_category_help', 'O item será publicado como post nesta categoria.') + '</span>' +
+                            '</div>' +
+                            // Mastodon accounts (hidden when only WordPress is selected)
+                            '<div id="nc-schedule-mastodon-group">' +
+                                '<div id="nc-schedule-accounts-container"></div>' +
+                            '</div>' +
                             '<div class="nc-form-group" id="nc-schedule-alt-group" style="display:none;">' +
                                 '<label class="nc-form-label">' +
                                     '<span class="dashicons dashicons-universal-access-alt" style="font-size:16px;vertical-align:text-bottom;"></span> ' +
@@ -608,6 +639,47 @@
                 if (itemId) {
                     NC.loadItemContent(itemId);
                 }
+            });
+
+            // Destination toggle handler
+            $(document).on('change', '.nc-dest-cb', function() {
+                NC.updateDestinationUI('nc-schedule');
+            });
+        },
+
+        // Atualiza UI baseada nos destinos selecionados
+        updateDestinationUI: function(prefix) {
+            var $wpCb = $('#' + prefix + '-modal .nc-dest-cb[value="wordpress"]');
+            var $mastoCb = $('#' + prefix + '-modal .nc-dest-cb[value="mastodon"]');
+            var wpSelected = $wpCb.is(':checked');
+            var mastoSelected = $mastoCb.is(':checked');
+
+            // Garante que ao menos um destino esteja selecionado
+            if (!wpSelected && !mastoSelected) {
+                $mastoCb.prop('checked', true);
+                mastoSelected = true;
+            }
+
+            $('#' + prefix + '-wp-group').toggle(wpSelected);
+            $('#' + prefix + '-mastodon-group').toggle(mastoSelected);
+
+            // Carrega categorias do WP se ainda não carregadas
+            if (wpSelected && !NC._wpCategoriesLoaded) {
+                NC.loadWpCategories('#' + prefix + '-wp-category');
+            }
+        },
+
+        loadWpCategories: function(targetSelector) {
+            wp.apiFetch({path: ncData.apiUrl + '/wp-categories'}).then(function(data) {
+                NC._wpCategoriesLoaded = true;
+                NC._wpCategoriesCache = data.categories || [];
+                var html = '<option value="">' + NC.__('select_category', 'Selecione uma categoria...') + '</option>';
+                NC._wpCategoriesCache.forEach(function(c) {
+                    html += '<option value="' + c.id + '">' + NC.escapeHtml(c.name) + ' (' + c.count + ')</option>';
+                });
+                $(targetSelector).html(html);
+            }).catch(function() {
+                $(targetSelector).html('<option value="">' + NC.__('load_error', 'Erro ao carregar') + '</option>');
             });
         },
 
@@ -745,6 +817,23 @@
                 return;
             }
 
+            // Collect destinations
+            var destinations = [];
+            $('#nc-schedule-modal .nc-dest-cb:checked').each(function() {
+                destinations.push($(this).val());
+            });
+            if (destinations.length === 0) destinations = ['mastodon'];
+
+            // Validate WP category when WordPress is selected
+            var wpCategoryId = 0;
+            if (destinations.indexOf('wordpress') !== -1) {
+                wpCategoryId = parseInt($('#nc-schedule-wp-category').val()) || 0;
+                if (!wpCategoryId) {
+                    this.showNotice('warning', NC.__('wp_category_required', 'Selecione uma categoria do WordPress.'));
+                    return;
+                }
+            }
+
             // Collect selected account IDs
             var accountIds = [];
             $('.nc-schedule-account-cb:checked').each(function() {
@@ -754,10 +843,14 @@
             var data = {
                 item_id: parseInt($('#nc-schedule-item-select').val()),
                 scheduled_for: $('#nc-schedule-datetime').val(),
-                content: content
+                content: content,
+                destinations: destinations
             };
 
-            // Include alt text if image is being included
+            if (wpCategoryId > 0) {
+                data.wp_category_id = wpCategoryId;
+            }
+
             if ($('#nc-schedule-include-image').is(':checked')) {
                 var altText = ($('#nc-schedule-alt-text').val() || '').trim();
                 if (altText) {
@@ -774,10 +867,12 @@
                 method: 'POST',
                 data: data
             }).then(function() {
-                var msg = accountIds.length > 1
-                    ? 'Publicação agendada em ' + accountIds.length + ' contas!'
-                    : NC.__('publication_scheduled', 'Publicação agendada com sucesso!');
-                NC.showNotice('success', msg);
+                var parts = [];
+                if (destinations.indexOf('mastodon') !== -1) {
+                    parts.push(accountIds.length > 1 ? accountIds.length + ' Mastodon' : 'Mastodon');
+                }
+                if (destinations.indexOf('wordpress') !== -1) parts.push('WordPress');
+                NC.showNotice('success', 'Publicação agendada em: ' + parts.join(' + '));
                 NC.closeModal('nc-schedule-modal');
                 if (typeof NC.loadPublications === 'function') {
                     setTimeout(function() { NC.loadPublications('scheduled'); }, 1000);

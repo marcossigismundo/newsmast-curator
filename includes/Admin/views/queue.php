@@ -41,6 +41,11 @@
 
 <script>
 jQuery(document).ready(function($) {
+    // Pre-load WP categories so the queue can display category names for WP publications
+    wp.apiFetch({path: ncData.apiUrl + '/wp-categories'}).then(function(data) {
+        NC._wpCategoriesCache = data.categories || [];
+    }).catch(function() { NC._wpCategoriesCache = []; });
+
     NC._loadAccountsForSelector(function() {
         NC.loadPublications('scheduled');
     });
@@ -80,7 +85,7 @@ NC.loadPublications = function(status) {
         }
 
         var html = '<table class="nc-table"><thead><tr>' +
-            '<th>Data/Hora</th><th>Conta</th><th>Conteúdo</th><th>Status</th><th>Tentativas</th><th>Ações</th>' +
+            '<th>Data/Hora</th><th>Destino</th><th>Conteúdo</th><th>Status</th><th>Tentativas</th><th>Ações</th>' +
             '</tr></thead><tbody>';
 
         pubs.forEach(function(pub) {
@@ -106,24 +111,44 @@ NC.loadPublications = function(status) {
                     posLabel + '</span>';
             }
 
-            var accountName = '—';
-            if (pub.mastodon_account_id && NC._mastodonAccounts) {
+            // Destination cell: Mastodon account name or WordPress category name
+            var destCell = '—';
+            if (pub.destination_type === 'wordpress') {
+                var catLabel = pub.wp_category_id
+                    ? (NC._wpCategoriesCache || []).find(function(c) { return c.id == pub.wp_category_id; })
+                    : null;
+                destCell = '<span class="nc-badge" style="background:#21759b;color:#fff;font-size:10px;">' +
+                    '<span class="dashicons dashicons-wordpress" style="font-size:12px;width:12px;height:12px;"></span> WP' +
+                    '</span> ' +
+                    (catLabel ? '<small>' + NC.escapeHtml(catLabel.name) + '</small>' : '<small>cat #' + (pub.wp_category_id || '?') + '</small>');
+            } else if (pub.mastodon_account_id && NC._mastodonAccounts) {
                 var acct = NC._mastodonAccounts.find(function(a) { return a.id == pub.mastodon_account_id; });
-                if (acct) accountName = '<span class="dashicons dashicons-share-alt2" style="font-size:14px;width:14px;height:14px;vertical-align:middle;"></span> ' + acct.name;
+                if (acct) {
+                    destCell = '<span class="nc-badge nc-badge-info" style="font-size:10px;">' +
+                        '<span class="dashicons dashicons-admin-site-alt3" style="font-size:12px;width:12px;height:12px;"></span> M</span> ' +
+                        '<small>' + NC.escapeHtml(acct.name) + '</small>';
+                }
+            } else {
+                destCell = '<span class="nc-badge nc-badge-info" style="font-size:10px;">' +
+                    '<span class="dashicons dashicons-admin-site-alt3" style="font-size:12px;width:12px;height:12px;"></span> Mastodon</span>';
             }
 
             html += '<tr>' +
                 '<td>' + date.toLocaleString('pt-BR') + '</td>' +
-                '<td>' + accountName + '</td>' +
+                '<td>' + destCell + '</td>' +
                 '<td title="' + contentAttr + '">' + contentPreview + '</td>' +
                 '<td><span class="nc-badge ' + badgeClass + '">' + statusLabel + '</span>' + threadBadge + '</td>' +
                 '<td>' + (pub.attempt_count || 0) + ' / 3</td>' +
                 '<td class="nc-table-actions">';
 
-            if (pub.status === 'published' && pub.mastodon_url) {
-                html += '<a href="' + pub.mastodon_url + '" target="_blank" class="nc-button nc-button-secondary">' +
-                    '<span class="dashicons dashicons-external"></span> Ver' +
-                    '</a>';
+            // "Ver" button: Mastodon URL or WordPress post URL
+            if (pub.status === 'published') {
+                var viewUrl = pub.destination_type === 'wordpress' ? pub.wp_post_url : pub.mastodon_url;
+                if (viewUrl) {
+                    html += '<a href="' + viewUrl + '" target="_blank" class="nc-button nc-button-secondary">' +
+                        '<span class="dashicons dashicons-external"></span> Ver' +
+                        '</a>';
+                }
             }
 
             if (pub.status === 'scheduled') {

@@ -67,15 +67,12 @@ class Scheduler_Service {
     private function process_publication($pub) {
         $content = $pub->get_content();
         $content_preview = mb_substr(wp_strip_all_tags($content), 0, 80);
-
-        // Resolve qual serviço Mastodon usar
-        $mastodon_service = $this->resolve_mastodon_service($pub);
-        $account_label = $this->get_account_label($pub);
+        $destination_label = $pub->is_wordpress() ? 'WordPress' : 'Mastodon';
 
         $this->logger->info('Iniciando processamento de publicação', [
             'related_type' => 'publication',
             'related_id' => $pub->get_id(),
-            'details' => sprintf('Item #%d | Agendada para: %s | Conta: %s', $pub->get_item_id(), $pub->get_scheduled_for(), $account_label),
+            'details' => sprintf('Item #%d | Destino: %s | Agendada: %s', $pub->get_item_id(), $destination_label, $pub->get_scheduled_for()),
             'content_preview' => $content_preview,
             'attempt' => $pub->get_attempt_count() + 1,
         ]);
@@ -84,43 +81,10 @@ class Scheduler_Service {
         $this->pub_repo->update($pub);
 
         try {
-            $media_ids = $this->upload_item_image($pub, $mastodon_service);
-
-            if (!empty($media_ids)) {
-                $this->logger->info('Imagem enviada ao Mastodon', [
-                    'related_type' => 'publication',
-                    'related_id' => $pub->get_id(),
-                    'details' => sprintf('media_ids: %s | Conta: %s', implode(', ', $media_ids), $account_label),
-                    'media_count' => count($media_ids),
-                ]);
-            }
-
-            // Thread support: resolve in_reply_to_id for threaded publications
-            $in_reply_to_id = $this->resolve_thread_reply_id($pub);
-
-            // Thread predecessor not yet published — reschedule
-            if ($in_reply_to_id === '__THREAD_WAIT__') {
-                $pub->reschedule(2);
-                $this->pub_repo->update($pub);
-                return;
-            }
-
-            $result = $mastodon_service->post_status($content, $media_ids, $in_reply_to_id);
-
-            if ($result && isset($result['id'])) {
-                $pub->mark_as_published($result['id'], $result['url'] ?? '');
-                $this->pub_repo->update($pub);
-                $this->logger->success('Publicação realizada com sucesso', [
-                    'related_type' => 'publication',
-                    'related_id' => $pub->get_id(),
-                    'mastodon_id' => $result['id'],
-                    'mastodon_url' => $result['url'] ?? '',
-                    'content_preview' => $content_preview,
-                    'media_count' => count($media_ids),
-                    'details' => sprintf('Mastodon ID: %s | Mídia: %d | Conta: %s', $result['id'], count($media_ids), $account_label),
-                ]);
+            if ($pub->is_wordpress()) {
+                $this->publish_to_wordpress($pub, $content_preview);
             } else {
-                throw new \Exception('Resposta inválida do Mastodon: ' . wp_json_encode($result));
+                $this->publish_to_mastodon($pub, $content, $content_preview);
             }
         } catch (\Exception $e) {
             $pub->increment_attempts();
@@ -132,7 +96,7 @@ class Scheduler_Service {
                     'related_id' => $pub->get_id(),
                     'error' => $e->getMessage(),
                     'attempt' => $pub->get_attempt_count(),
-                    'details' => sprintf('Tentativa %d/%d | Próxima em 10min | Conta: %s', $pub->get_attempt_count(), get_option('nc_max_attempts', 3), $account_label),
+                    'details' => sprintf('Tentativa %d/%d | Próxima em 10min | Destino: %s', $pub->get_attempt_count(), get_option('nc_max_attempts', 3), $destination_label),
                     'content_preview' => $content_preview,
                 ]);
             } else {
@@ -142,13 +106,83 @@ class Scheduler_Service {
                     'related_id' => $pub->get_id(),
                     'error' => $e->getMessage(),
                     'attempt' => $pub->get_attempt_count(),
-                    'details' => sprintf('Esgotadas %d tentativas | Conta: %s', $pub->get_attempt_count(), $account_label),
+                    'details' => sprintf('Esgotadas %d tentativas | Destino: %s', $pub->get_attempt_count(), $destination_label),
                     'content_preview' => $content_preview,
                 ]);
             }
 
             $this->pub_repo->update($pub);
         }
+    }
+
+    /**
+     * Publica no Mastodon
+     */
+    private function publish_to_mastodon($pub, $content, $content_preview) {
+        $mastodon_service = $this->resolve_mastodon_service($pub);
+        $account_label = $this->get_account_label($pub);
+
+        $media_ids = $this->upload_item_image($pub, $mastodon_service);
+
+        if (!empty($media_ids)) {
+            $this->logger->info('Imagem enviada ao Mastodon', [
+                'related_type' => 'publication',
+                'related_id' => $pub->get_id(),
+                'details' => sprintf('media_ids: %s | Conta: %s', implode(', ', $media_ids), $account_label),
+                'media_count' => count($media_ids),
+            ]);
+        }
+
+        // Thread support: resolve in_reply_to_id for threaded publications
+        $in_reply_to_id = $this->resolve_thread_reply_id($pub);
+
+        // Thread predecessor not yet published — reschedule
+        if ($in_reply_to_id === '__THREAD_WAIT__') {
+            $pub->reschedule(2);
+            $this->pub_repo->update($pub);
+            return;
+        }
+
+        $result = $mastodon_service->post_status($content, $media_ids, $in_reply_to_id);
+
+        if ($result && isset($result['id'])) {
+            $pub->mark_as_published($result['id'], $result['url'] ?? '');
+            $this->pub_repo->update($pub);
+            $this->logger->success('Publicação Mastodon realizada com sucesso', [
+                'related_type' => 'publication',
+                'related_id' => $pub->get_id(),
+                'mastodon_id' => $result['id'],
+                'mastodon_url' => $result['url'] ?? '',
+                'content_preview' => $content_preview,
+                'media_count' => count($media_ids),
+                'details' => sprintf('Mastodon ID: %s | Mídia: %d | Conta: %s', $result['id'], count($media_ids), $account_label),
+            ]);
+        } else {
+            throw new \Exception('Resposta inválida do Mastodon: ' . wp_json_encode($result));
+        }
+    }
+
+    /**
+     * Publica como post no WordPress (categoria escolhida)
+     */
+    private function publish_to_wordpress($pub, $content_preview) {
+        $wp_service = new WordPress_Publisher_Service($this->database);
+        $result = $wp_service->publish($pub);
+
+        $pub->mark_as_published_wp($result['post_id'], $result['post_url']);
+        $this->pub_repo->update($pub);
+
+        $cat = get_term($pub->get_wp_category_id(), 'category');
+        $cat_name = ($cat && !is_wp_error($cat)) ? $cat->name : '#' . $pub->get_wp_category_id();
+
+        $this->logger->success('Publicação WordPress realizada com sucesso', [
+            'related_type' => 'publication',
+            'related_id' => $pub->get_id(),
+            'wp_post_id' => $result['post_id'],
+            'wp_post_url' => $result['post_url'],
+            'content_preview' => $content_preview,
+            'details' => sprintf('Post ID: %d | Categoria: %s | URL: %s', $result['post_id'], $cat_name, $result['post_url']),
+        ]);
     }
 
     /**

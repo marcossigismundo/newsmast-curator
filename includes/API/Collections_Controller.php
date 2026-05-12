@@ -264,12 +264,18 @@ class Collections_Controller extends Base_REST_Controller {
         $as_thread = !empty($request['as_thread']);
         $mastodon_account_ids = $request['mastodon_account_ids'] ?? [];
 
+        // Destinos: mastodon, wordpress, ou ambos
+        $destinations = isset($request['destinations']) ? (array) $request['destinations'] : ['mastodon'];
+        $destinations = array_intersect($destinations, ['mastodon', 'wordpress']);
+        if (empty($destinations)) $destinations = ['mastodon'];
+
+        $wp_category_id = isset($request['wp_category_id']) ? (int) $request['wp_category_id'] : 0;
+
         if (empty($scheduled_for)) {
             return $this->prepare_error(__('Data de agendamento é obrigatória', 'newsmast-curator'), 'validation_error', 400);
         }
 
         $start_timestamp = strtotime($scheduled_for);
-        // Allow same-day scheduling with 60s tolerance, but never retroactive
         $now = current_time('timestamp');
         if (!$start_timestamp || $start_timestamp < ($now - 60)) {
             return $this->prepare_error(__('Data de agendamento deve ser atual ou futura (não retroativa)', 'newsmast-curator'), 'validation_error', 400);
@@ -279,13 +285,24 @@ class Collections_Controller extends Base_REST_Controller {
             return $this->prepare_error(__('Intervalo deve ser pelo menos 1 minuto', 'newsmast-curator'), 'validation_error', 400);
         }
 
-        // Thread mode requires a single account (all posts must be from same author)
+        // Thread mode requires a single Mastodon account
         if ($as_thread && count($mastodon_account_ids) > 1) {
             return $this->prepare_error(
                 __('Thread requer uma única conta Mastodon (todas as respostas devem ser do mesmo autor)', 'newsmast-curator'),
                 'validation_error',
                 400
             );
+        }
+
+        // Valida categoria WP quando destino inclui WordPress
+        if (in_array('wordpress', $destinations, true)) {
+            if (!$wp_category_id || !term_exists($wp_category_id, 'category')) {
+                return $this->prepare_error(
+                    __('Categoria WordPress é obrigatória quando o destino inclui WordPress', 'newsmast-curator'),
+                    'validation_error',
+                    400
+                );
+            }
         }
 
         $rows = $repo->get_collection_items($request['id']);
@@ -296,39 +313,60 @@ class Collections_Controller extends Base_REST_Controller {
         $pub_repo = new Publication_Repository($this->database);
         $created = 0;
 
-        // Generate thread_id for thread mode
-        $thread_id = $as_thread ? 'thread_' . $request['id'] . '_' . time() : null;
+        // Thread só faz sentido para Mastodon
+        $effective_thread = $as_thread && in_array('mastodon', $destinations, true);
+        $thread_id = $effective_thread ? 'thread_' . $request['id'] . '_' . time() : null;
+        $effective_interval = $effective_thread ? max($interval, 1) : $interval;
 
-        // For thread mode: shorter interval (replies should be close together)
-        $effective_interval = $as_thread ? max($interval, 1) : $interval;
+        // Cria publicações Mastodon (uma por conta, com thread quando aplicável)
+        if (in_array('mastodon', $destinations, true)) {
+            $target_accounts = !empty($mastodon_account_ids)
+                ? array_map('intval', (array) $mastodon_account_ids)
+                : [null];
 
-        // Determine target accounts
-        $target_accounts = !empty($mastodon_account_ids)
-            ? array_map('intval', (array) $mastodon_account_ids)
-            : [null]; // null = default account
+            foreach ($target_accounts as $account_id) {
+                $account_thread_id = $thread_id && $account_id ? $thread_id . '_a' . $account_id : $thread_id;
 
-        foreach ($target_accounts as $account_id) {
-            // Each account gets its own thread_id to avoid cross-account thread conflicts
-            $account_thread_id = $thread_id && $account_id ? $thread_id . '_a' . $account_id : $thread_id;
+                foreach ($rows as $index => $row) {
+                    $item = Item::from_row($row);
+                    $pub_time = date('Y-m-d H:i:s', $start_timestamp + ($index * $effective_interval * 60));
 
+                    $pub = new Publication();
+                    $pub->set_item_id($item->get_id());
+                    $pub->set_destination_type(Publication::DESTINATION_MASTODON);
+                    $pub->set_scheduled_for($pub_time);
+                    $pub->set_content($item->get_formatted_content());
+                    $pub->set_published_by(get_current_user_id());
+
+                    if ($account_id) {
+                        $pub->set_mastodon_account_id($account_id);
+                    }
+
+                    if ($effective_thread) {
+                        $pub->set_thread_id($account_thread_id ?: $thread_id);
+                        $pub->set_thread_position($index);
+                    }
+
+                    if ($pub_repo->insert($pub)) {
+                        $created++;
+                    }
+                }
+            }
+        }
+
+        // Cria publicações WordPress (uma por item, na mesma categoria)
+        if (in_array('wordpress', $destinations, true)) {
             foreach ($rows as $index => $row) {
                 $item = Item::from_row($row);
-                $pub_time = date('Y-m-d H:i:s', $start_timestamp + ($index * $effective_interval * 60));
+                $pub_time = date('Y-m-d H:i:s', $start_timestamp + ($index * $interval * 60));
 
                 $pub = new Publication();
                 $pub->set_item_id($item->get_id());
+                $pub->set_destination_type(Publication::DESTINATION_WORDPRESS);
+                $pub->set_wp_category_id($wp_category_id);
                 $pub->set_scheduled_for($pub_time);
                 $pub->set_content($item->get_formatted_content());
                 $pub->set_published_by(get_current_user_id());
-
-                if ($account_id) {
-                    $pub->set_mastodon_account_id($account_id);
-                }
-
-                if ($as_thread) {
-                    $pub->set_thread_id($account_thread_id ?: $thread_id);
-                    $pub->set_thread_position($index);
-                }
 
                 if ($pub_repo->insert($pub)) {
                     $created++;
@@ -345,8 +383,9 @@ class Collections_Controller extends Base_REST_Controller {
             'success' => true,
             'publications_created' => $created,
             'total_items' => count($rows),
-            'as_thread' => $as_thread,
+            'as_thread' => $effective_thread,
             'thread_id' => $thread_id,
+            'destinations' => array_values($destinations),
         ]);
     }
 
