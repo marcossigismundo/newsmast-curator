@@ -47,6 +47,10 @@ class Collections_Controller extends Base_REST_Controller {
             ['methods' => 'POST', 'callback' => [$this, 'schedule_collection'], 'permission_callback' => [$this, 'check_permissions']],
         ]);
 
+        register_rest_route($this->namespace, '/' . $this->rest_base . '/(?P<id>[\d]+)/pending-count', [
+            ['methods' => 'GET', 'callback' => [$this, 'get_pending_count'], 'permission_callback' => [$this, 'check_permissions']],
+        ]);
+
         register_rest_route($this->namespace, '/' . $this->rest_base . '/stats', [
             ['methods' => 'GET', 'callback' => [$this, 'get_stats'], 'permission_callback' => [$this, 'check_permissions']],
         ]);
@@ -150,19 +154,54 @@ class Collections_Controller extends Base_REST_Controller {
     }
 
     /**
-     * Deleta coleção
+     * Deleta coleção (e cancela publicações pendentes vinculadas)
      */
     public function delete_item($request) {
         $repo = new Collection_Repository($this->database);
+        $id = (int) $request['id'];
 
-        if (!$repo->exists($request['id'])) {
+        if (!$repo->exists($id)) {
             return $this->prepare_error(__('Coleção não encontrada', 'newsmast-curator'), 'not_found', 404);
         }
 
-        $result = $repo->delete($request['id']);
-        return $result
-            ? $this->prepare_response(['success' => true])
-            : $this->prepare_error(__('Falha ao excluir coleção', 'newsmast-curator'));
+        // Conta publicações pendentes antes de deletar (para informar o usuário)
+        $cancelled = $repo->count_pending_publications($id);
+
+        $result = $repo->delete($id);
+
+        if (!$result) {
+            return $this->prepare_error(__('Falha ao excluir coleção', 'newsmast-curator'));
+        }
+
+        if ($cancelled > 0) {
+            $logger = new \NewsmastCurator\Services\Logger_Service($this->database);
+            $logger->info('Coleção removida, publicações pendentes canceladas', [
+                'related_type' => 'collection',
+                'related_id' => $id,
+                'details' => sprintf('%d publicação(ões) pendente(s) cancelada(s)', $cancelled),
+            ]);
+        }
+
+        return $this->prepare_response([
+            'success' => true,
+            'cancelled_publications' => $cancelled,
+        ]);
+    }
+
+    /**
+     * Conta publicações pendentes de uma coleção (para preview antes de deletar)
+     */
+    public function get_pending_count($request) {
+        $repo = new Collection_Repository($this->database);
+        $id = (int) $request['id'];
+
+        if (!$repo->exists($id)) {
+            return $this->prepare_error(__('Coleção não encontrada', 'newsmast-curator'), 'not_found', 404);
+        }
+
+        return $this->prepare_response([
+            'pending_publications' => $repo->count_pending_publications($id),
+        ]);
     }
 
     /**
@@ -333,6 +372,7 @@ class Collections_Controller extends Base_REST_Controller {
 
                     $pub = new Publication();
                     $pub->set_item_id($item->get_id());
+                    $pub->set_collection_id((int) $request['id']);
                     $pub->set_destination_type(Publication::DESTINATION_MASTODON);
                     $pub->set_scheduled_for($pub_time);
                     $pub->set_content($item->get_formatted_content());
@@ -362,6 +402,7 @@ class Collections_Controller extends Base_REST_Controller {
 
                 $pub = new Publication();
                 $pub->set_item_id($item->get_id());
+                $pub->set_collection_id((int) $request['id']);
                 $pub->set_destination_type(Publication::DESTINATION_WORDPRESS);
                 $pub->set_wp_category_id($wp_category_id);
                 $pub->set_scheduled_for($pub_time);

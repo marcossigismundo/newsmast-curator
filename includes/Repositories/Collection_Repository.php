@@ -208,14 +208,58 @@ class Collection_Repository extends Base_Repository {
     }
 
     /**
-     * Deleta coleção e suas entradas pivot
+     * Deleta coleção, suas entradas pivot e cancela publicações pendentes vinculadas.
+     * Publicações já publicadas ou falhadas têm collection_id zerado (mantidas como histórico).
      *
      * @param int $id
      * @return bool
      */
     public function delete($id) {
-        $this->wpdb->delete($this->pivot_table, ['collection_id' => (int) $id]);
+        $pubs_table = $this->database->get_table_name('publications');
+        $id = (int) $id;
+
+        // Cancela (remove) publicações pendentes vinculadas à coleção
+        $this->wpdb->query(
+            $this->wpdb->prepare(
+                "DELETE FROM {$pubs_table}
+                 WHERE collection_id = %d
+                 AND status IN ('scheduled', 'processing')",
+                $id
+            )
+        );
+
+        // Mantém publicações já publicadas/falhadas, mas desvincula da coleção
+        $this->wpdb->query(
+            $this->wpdb->prepare(
+                "UPDATE {$pubs_table}
+                 SET collection_id = NULL
+                 WHERE collection_id = %d
+                 AND status IN ('published', 'failed')",
+                $id
+            )
+        );
+
+        $this->wpdb->delete($this->pivot_table, ['collection_id' => $id]);
         return parent::delete($id);
+    }
+
+    /**
+     * Conta publicações pendentes (scheduled/processing) vinculadas à coleção.
+     * Usado pela UI para avisar o usuário antes de deletar.
+     *
+     * @param int $collection_id
+     * @return int
+     */
+    public function count_pending_publications($collection_id) {
+        $pubs_table = $this->database->get_table_name('publications');
+        return (int) $this->wpdb->get_var(
+            $this->wpdb->prepare(
+                "SELECT COUNT(*) FROM {$pubs_table}
+                 WHERE collection_id = %d
+                 AND status IN ('scheduled', 'processing')",
+                (int) $collection_id
+            )
+        );
     }
 
     /**

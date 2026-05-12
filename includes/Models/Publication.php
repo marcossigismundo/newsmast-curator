@@ -11,6 +11,7 @@ namespace NewsmastCurator\Models;
 class Publication {
     private $id = 0;
     private $item_id = 0;
+    private $collection_id = null;
     private $destination_type = 'mastodon';
     private $mastodon_account_id = null;
     private $wp_category_id = null;
@@ -45,6 +46,7 @@ class Publication {
     // Getters
     public function get_id() { return $this->id; }
     public function get_item_id() { return $this->item_id; }
+    public function get_collection_id() { return $this->collection_id; }
     public function get_destination_type() { return $this->destination_type; }
     public function get_mastodon_account_id() { return $this->mastodon_account_id; }
     public function get_wp_category_id() { return $this->wp_category_id; }
@@ -69,6 +71,7 @@ class Publication {
     // Setters
     public function set_id($id) { $this->id = (int) $id; }
     public function set_item_id($id) { $this->item_id = (int) $id; }
+    public function set_collection_id($id) { $this->collection_id = $id ? (int) $id : null; }
     public function set_destination_type($type) {
         $type = sanitize_text_field($type);
         $this->destination_type = in_array($type, [self::DESTINATION_MASTODON, self::DESTINATION_WORDPRESS], true)
@@ -265,6 +268,7 @@ class Publication {
 
         $pub->set_id($row->id ?? 0);
         $pub->set_item_id($row->item_id ?? 0);
+        $pub->set_collection_id($row->collection_id ?? null);
         $pub->set_destination_type($row->destination_type ?? 'mastodon');
         $pub->set_mastodon_account_id($row->mastodon_account_id ?? null);
         $pub->set_wp_category_id($row->wp_category_id ?? null);
@@ -297,6 +301,7 @@ class Publication {
     public function to_array() {
         $data = [
             'item_id' => $this->item_id,
+            'collection_id' => $this->collection_id,
             'destination_type' => $this->destination_type,
             'mastodon_account_id' => $this->mastodon_account_id,
             'wp_category_id' => $this->wp_category_id,
@@ -335,6 +340,7 @@ class Publication {
         return [
             'id' => $this->id,
             'item_id' => $this->item_id,
+            'collection_id' => $this->collection_id,
             'destination_type' => $this->destination_type,
             'mastodon_account_id' => $this->mastodon_account_id,
             'wp_category_id' => $this->wp_category_id,

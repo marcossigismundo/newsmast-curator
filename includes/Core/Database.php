@@ -28,7 +28,7 @@ class Database {
      *
      * @var string
      */
-    private $db_version = '1.5.0';
+    private $db_version = '1.6.0';
 
     /**
      * Construtor
@@ -92,6 +92,7 @@ class Database {
             $this->migrate_publications_alt_text();
             $this->migrate_publications_thread();
             $this->migrate_publications_wordpress();
+            $this->migrate_publications_collection_id();
 
             update_option('nc_db_version', $this->db_version);
 
@@ -399,6 +400,20 @@ class Database {
             $this->wpdb->query("ALTER TABLE {$table} ADD COLUMN wp_post_url VARCHAR(500) NULL AFTER wp_post_id");
             $this->wpdb->query("ALTER TABLE {$table} ADD KEY idx_destination_type (destination_type)");
             $this->wpdb->query("ALTER TABLE {$table} ADD KEY idx_wp_post_id (wp_post_id)");
+        }
+    }
+
+    /**
+     * Migração: adiciona collection_id à tabela publications
+     * Permite rastrear publicações criadas a partir de uma coleção,
+     * e cascatear o cancelamento ao deletar a coleção.
+     */
+    private function migrate_publications_collection_id() {
+        $table = $this->tables['publications'];
+        $row = $this->wpdb->get_row("SHOW COLUMNS FROM {$table} LIKE 'collection_id'");
+        if (!$row) {
+            $this->wpdb->query("ALTER TABLE {$table} ADD COLUMN collection_id BIGINT(20) UNSIGNED NULL AFTER item_id");
+            $this->wpdb->query("ALTER TABLE {$table} ADD KEY idx_collection_id (collection_id)");
         }
     }
 

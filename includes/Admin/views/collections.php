@@ -806,17 +806,50 @@ NC.scheduleCollectionItem = function(itemId) {
 // ========== Delete Collection ==========
 
 NC.deleteCollection = function(id) {
-    if (!confirm(NC.__('confirm_delete_collection', 'Excluir esta coleção? Os itens não serão removidos.'))) return;
+    // Busca contagem de publicações pendentes antes de confirmar
+    wp.apiFetch({path: ncData.apiUrl + '/collections/' + id + '/pending-count'}).then(function(data) {
+        var pending = data.pending_publications || 0;
 
-    wp.apiFetch({
-        path: ncData.apiUrl + '/collections/' + id,
-        method: 'DELETE'
-    }).then(function() {
-        NC.showNotice('success', NC.__('collection_deleted', 'Coleção excluída!'));
-        NC.loadCollections(NC._collectionsFilter);
-        NC.loadCollectionStats();
-    }).catch(function(e) {
-        NC.showNotice('error', NC.__('delete_error', 'Erro ao excluir: ') + (e.message || ''));
+        var msg = NC.__('confirm_delete_collection', 'Excluir esta coleção?\n\nOs itens curados não serão removidos.');
+        if (pending > 0) {
+            msg += '\n\n⚠️  Esta coleção tem ' + pending + ' publicação(ões) agendada(s) que será(ão) CANCELADA(S).';
+        }
+
+        if (!confirm(msg)) return;
+
+        wp.apiFetch({
+            path: ncData.apiUrl + '/collections/' + id,
+            method: 'DELETE'
+        }).then(function(response) {
+            var cancelled = response.cancelled_publications || 0;
+            var successMsg = NC.__('collection_deleted', 'Coleção excluída!');
+            if (cancelled > 0) {
+                successMsg += ' ' + cancelled + ' publicação(ões) pendente(s) cancelada(s).';
+            }
+            NC.showNotice('success', successMsg);
+            NC.loadCollections(NC._collectionsFilter);
+            NC.loadCollectionStats();
+        }).catch(function(e) {
+            NC.showNotice('error', NC.__('delete_error', 'Erro ao excluir: ') + (e.message || ''));
+        });
+    }).catch(function() {
+        // Fallback se o endpoint de contagem falhar — usa confirmação genérica
+        if (!confirm(NC.__('confirm_delete_collection', 'Excluir esta coleção? Os itens não serão removidos.'))) return;
+        wp.apiFetch({
+            path: ncData.apiUrl + '/collections/' + id,
+            method: 'DELETE'
+        }).then(function(response) {
+            var cancelled = response.cancelled_publications || 0;
+            var successMsg = NC.__('collection_deleted', 'Coleção excluída!');
+            if (cancelled > 0) {
+                successMsg += ' ' + cancelled + ' publicação(ões) cancelada(s).';
+            }
+            NC.showNotice('success', successMsg);
+            NC.loadCollections(NC._collectionsFilter);
+            NC.loadCollectionStats();
+        }).catch(function(e) {
+            NC.showNotice('error', NC.__('delete_error', 'Erro ao excluir: ') + (e.message || ''));
+        });
     });
 };
 </script>
